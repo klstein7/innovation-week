@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator zod {
+  provider = "zod-prisma-types"
+}
+
+model Chat {
+  id        String   @id @default(cuid())
+  name      String ///@zod.string.min(1, { message: "Please enter a chat name" })
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  content   String      @db.Text ///@zod.string.min(1, { message: "Please enter a message" })
+  role      MessageRole @default(USER)
+  results   String?     @db.Text
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chatId String
+
+  responseTo   Message? @relation("ResponseTo", fields: [responseToId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  responseToId String?
+
+  responses Message[] @relation("ResponseTo")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model Application {
+  id           String            @id @default(cuid())
+  amount       Float
+  language     Language          @default(ENGLISH)
+  status       ApplicationStatus @default(PENDING)
+  productLine  ProductLine       @default(INPUT_FINANCING)
+  businessLine BusinessLine      @default(SMALL_BUSINESS)
+  channel      Channel           @default(ALLIANCE_SERVICES)
+  createdAt    DateTime
+  updatedAt    DateTime
+
+  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id])
+  businessPartnerId String
+}
+
+model BusinessPartner {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  applications Application[]
+}
+
+enum Role {
+  SYSTEM
+  USER
+  ASSISTANT
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+enum ProductLine {
+  INPUT_FINANCING
+}
+
+enum BusinessLine {
+  SMALL_BUSINESS
+  CORPORATE_AND_COMMERCIAL
+}
+
+enum Channel {
+  ALLIANCE_SERVICES
+  JET
+  ONLINE_SERVICES
+}
+
+enum Language {
+  ENGLISH
+  FRENCH
+}
