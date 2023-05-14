@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { isMessagingAtom, messagesAtom } from "@/atoms"
 import { Message } from "@prisma/client"
 import { useAtom } from "jotai"
-import { Loader, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
+
+import { cn } from "@/lib/utils"
 
 import { MessageItem } from "./message-item"
 
@@ -15,15 +17,37 @@ type Props = {
 export const MessageList = ({ messages }: Props) => {
   const [optimisticMessages, setMessages] = useAtom(messagesAtom)
   const [isMessaging] = useAtom(isMessagingAtom)
+
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
   useEffect(() => {
     setMessages(messages)
   }, [messages, setMessages])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [optimisticMessages])
+
   return (
-    <ul className="flex flex-1 flex-col gap-2 p-4">
-      {optimisticMessages.map((message) => (
-        <MessageItem key={message.id} message={message} />
-      ))}
-      {isMessaging && <Loader2 className="h-5 w-5 animate-spin text-ring" />}
-    </ul>
+    <div className="flex max-h-[calc(100vh-9rem)] flex-1 flex-col overflow-y-auto">
+      <ul className="flex  flex-1 flex-col gap-2 p-4">
+        {optimisticMessages.map((message) => (
+          <MessageItem key={message.id} message={message} />
+        ))}
+      </ul>
+      <div
+        ref={bottomRef}
+        className={cn(
+          "flex items-center justify-center gap-2 p-2",
+          isMessaging ? "visible" : "invisible"
+        )}
+      >
+        <Loader2 className="h-4 w-4 animate-spin text-ring" />
+        <div className="text-xs text-muted-foreground">Thinking...</div>
+      </div>
+    </div>
   )
 }

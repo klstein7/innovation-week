@@ -36,13 +36,13 @@ export default function RootLayout({ children }: RootLayoutProps) {
         <head />
         <body
           className={cn(
-            "min-h-screen bg-background font-sans antialiased",
+            "h-screen bg-background font-sans antialiased",
             fontSans.variable
           )}
         >
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <div className="relative flex h-screen flex-col">
-              <div className="flex justify-end p-2">
+              <div className="flex h-12 shrink-0 items-center justify-end border-b px-2">
                 <ThemeToggle />
               </div>
               <div className="flex flex-1 flex-col">{children}</div>

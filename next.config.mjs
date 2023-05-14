@@ -3,6 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: true,
+    serverComponentsExternalPackages: ["@tremor/react"],
   },
 }
 

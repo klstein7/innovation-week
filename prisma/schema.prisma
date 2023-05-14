@@ -25,9 +25,10 @@ model Chat {
 
 model Message {
   id        String      @id @default(cuid())
-  content   String      @db.Text ///@zod.string.min(1, { message: "Please enter a message" })
+  type      MessageType @default(TEXT)
   role      MessageRole @default(USER)
-  results   String?     @db.Text
+  content   String      @db.Text ///@zod.string.min(1, { message: "Please enter a message" })
+  results   Json?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -38,12 +39,6 @@ model Message {
   responseToId String?
 
   responses Message[] @relation("ResponseTo")
-}
-
-enum MessageRole {
-  USER
-  ASSISTANT
-  SYSTEM
 }
 
 model Application {
@@ -73,10 +68,17 @@ model BusinessPartner {
   applications Application[]
 }
 
-enum Role {
-  SYSTEM
+enum MessageRole {
   USER
   ASSISTANT
+  SYSTEM
+  CHART
+}
+
+enum MessageType {
+  TEXT
+  TABLE
+  CHART
 }
 
 enum ApplicationStatus {

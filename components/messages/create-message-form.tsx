@@ -6,7 +6,7 @@ import { MessageUncheckedCreateInputSchema } from "@/prisma/generated/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { MessageRole } from "@prisma/client"
 import { useAtom } from "jotai"
-import { Loader, Loader2, Send } from "lucide-react"
+import { Loader2, Send } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
@@ -29,7 +29,7 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
   return (
     <form
       autoComplete="off"
-      className="flex items-center justify-center px-4 py-10"
+      className="flex h-24 shrink-0 items-center justify-center border-t px-4"
       onSubmit={form.handleSubmit(async (values) => {
         setIsMessaging(true)
 
