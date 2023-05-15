@@ -1,7 +1,6 @@
 "use client"
 
 import { useMemo } from "react"
-import { createChartMessage } from "@/actions/message"
 import { isMessagingAtom } from "@/atoms"
 import { Message, MessageRole, MessageType } from "@prisma/client"
 import { BarChart } from "@tremor/react"
@@ -74,21 +73,6 @@ export const MessageItem = ({ message }: Props) => {
             <Download className="h-3 w-3" />
             CSV
           </CSVLink>
-
-          <button
-            className="flex select-none items-center justify-center gap-2 rounded border px-3 py-1 text-xs hover:bg-primary hover:text-primary-foreground"
-            onClick={async () => {
-              setIsMessaging(true)
-              await createChartMessage({
-                chatId: message.chatId,
-                content: JSON.stringify(parsedResults),
-              })
-              setIsMessaging(false)
-            }}
-          >
-            <BarChart3 className="h-3 w-3" />
-            Chart
-          </button>
         </div>
       )}
       <div
