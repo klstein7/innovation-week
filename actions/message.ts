@@ -110,7 +110,7 @@ enum Language {
 
 
 Using these schemas, create a PostgreSQL query to answer this question:
-{inputQuestion}"
+{input}"
 `
 
 const REFLECTION_PROMPT = `
@@ -130,7 +130,7 @@ For instance, given the query SELECT "User"."name", "User"."email" FROM "User" J
   "response": "SELECT \"User\".\"name\", \"User\".\"email\" FROM \"User\" JOIN \"Post\" ON \"User\".\"id\" = \"Post\".\"userId\" WHERE \"Post\".\"title\" LIKE '%AI%'"
 }
 Now, apply these steps to the following SQL query:
-{inputQuery}"
+{input}"
 `
 
 const CHART_PROMPT = `
@@ -146,7 +146,7 @@ Next, you need to restructure the dataset. The restructured data should include 
 Your response must only be a JSON object, and must not include any other text or formatting. Your response should be in this format:
 
 {
-  "status": "<AVAILABLE | UNAVAILABLE>",
+  "status": "<VALID | INVALID>",
   "response": <{
     "title": "<Title of the chart>",
     "categories": ["<Array of categories>"],
@@ -202,7 +202,7 @@ Given this data:
 Your output should be:
 
 {
-  "status": "AVAILABLE",
+  "status": "VALID",
   "response": {
     "title": "Channel by Language",
     "categories": ["ALLIANCE_SERVICES", "JET", "ONLINE_SERVICES"],
@@ -247,11 +247,10 @@ Given this data:
 Your output should be:
 
 {
-  "status": "AVAILABLE",
+  "status": "VALID",
   "response": {
     "title": "Number of species threatened with extinction",
     "categories": ["Number of threatened species"],
-    "minValue": 743,
     "maxValue": 2488,
     "data": [
       {
@@ -270,7 +269,8 @@ Your output should be:
   }
 }
 
-Now, please apply these steps and principles to the following dataset: {inputData}
+Now, please apply these steps and principles to the following dataset: 
+{input}
 `
 
 type ReflectionResponse = {
@@ -278,84 +278,170 @@ type ReflectionResponse = {
   response: string
 }
 
+type ChartResponse = {
+  status: "VALID" | "INVALID"
+  response: {
+    title: string
+    categories: string[]
+    maxValue?: number
+    data: {
+      topic: string
+      [key: string]: string | number
+    }
+  } | null
+}
+
+export const createErrorMessage = async ({
+  chatId,
+  responseToId,
+}: {
+  chatId: string
+  responseToId: string
+}) => {
+  await prisma.message.create({
+    data: {
+      type: MessageType.TEXT,
+      content: "Sorry, unable to process your request. Please try again.",
+      chatId,
+      role: MessageRole.ASSISTANT,
+      responseToId,
+    },
+  })
+}
+
+type OpenAiCompletionRequestParams = {
+  prompt: string
+  input: string
+  role: ChatCompletionRequestMessageRoleEnum
+}
+
+const createChatCompletion = async ({
+  prompt,
+  input,
+  role,
+}: OpenAiCompletionRequestParams) => {
+  const response = await openai.createChatCompletion({
+    model: "gpt-3.5-turbo",
+    temperature: 0,
+    messages: [
+      {
+        content: prompt.replace("{input}", input),
+        role,
+      },
+    ],
+  })
+
+  const messageContent = response.data.choices[0].message?.content
+  if (!messageContent) {
+    throw new Error("No response from OpenAI")
+  }
+
+  return messageContent
+}
+
+const processSQLResponse = async (
+  input: Prisma.MessageUncheckedCreateInput
+) => {
+  const sqlResponse = await createChatCompletion({
+    prompt: BASE_PROMPT.replace("{input}", input.content),
+    input: input.content,
+    role: ChatCompletionRequestMessageRoleEnum.User,
+  })
+
+  const reflectionResponse = await createChatCompletion({
+    prompt: REFLECTION_PROMPT.replace("{input}", sqlResponse),
+    input: sqlResponse,
+    role: ChatCompletionRequestMessageRoleEnum.System,
+  })
+
+  const parsedReflection = JSON.parse(reflectionResponse) as ReflectionResponse
+
+  if (parsedReflection.status === "VALID") {
+    const results = await prisma.$queryRawUnsafe(parsedReflection.response)
+    return {
+      results,
+      parsedReflection,
+    }
+  }
+
+  return null
+}
+
+const processChartResponse = async (
+  resultsString: string,
+  results: any,
+  input: Prisma.MessageUncheckedCreateInput,
+  messageId: string
+) => {
+  const chartResponse = await createChatCompletion({
+    prompt: CHART_PROMPT,
+    input: resultsString,
+    role: ChatCompletionRequestMessageRoleEnum.System,
+  })
+
+  const parsedChartResponse = JSON.parse(chartResponse) as ChartResponse
+
+  if (parsedChartResponse.status === "VALID") {
+    await prisma.message.create({
+      data: {
+        type: MessageType.CHART,
+        content: "Here is the chart:",
+        chatId: input.chatId,
+        role: MessageRole.ASSISTANT,
+        results: JSON.stringify(parsedChartResponse.response),
+        sql: results.parsedReflection.response,
+        responseToId: messageId,
+      },
+    })
+  } else {
+    await createErrorMessage({
+      chatId: input.chatId,
+      responseToId: messageId,
+    })
+  }
+}
+
 export const createMessage = async (
   input: Prisma.MessageUncheckedCreateInput
 ) => {
-  console.log(input)
-  if (input.type === MessageType.TABLE) {
-    const message = await prisma.message.create({ data: input })
+  const message = await prisma.message.create({ data: input })
 
-    console.log("Creating SQL...")
+  try {
+    const results = await processSQLResponse(input)
 
-    let response = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      temperature: 0,
-      messages: [
-        {
-          content: BASE_PROMPT.replace("{inputQuestion}", input.content),
-          role: ChatCompletionRequestMessageRoleEnum.User,
-        },
-      ],
-    })
-
-    const sqlResponse = response.data.choices[0].message?.content
-
-    if (!sqlResponse) {
-      throw new Error("No response from OpenAI")
+    if (!results) {
+      throw new Error("Invalid SQL response")
     }
 
-    console.log(`SQL Response: ${sqlResponse}`)
+    const resultsString = JSON.stringify(results.results, (key, value) =>
+      typeof value === "bigint" ? value.toString() : value
+    )
 
-    console.log("Reflecting on SQL...")
-
-    response = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      temperature: 0,
-      messages: [
-        {
-          content: REFLECTION_PROMPT.replace("{inputQuery}", sqlResponse),
-          role: ChatCompletionRequestMessageRoleEnum.System,
+    if (input.type === MessageType.TABLE) {
+      await prisma.message.create({
+        data: {
+          type: MessageType.TABLE,
+          results: resultsString,
+          content: "Here are the results:",
+          chatId: input.chatId,
+          role: MessageRole.ASSISTANT,
+          sql: results.parsedReflection.response,
+          responseToId: message.id,
         },
-      ],
+      })
+    } else if (input.type === MessageType.CHART) {
+      await processChartResponse(resultsString, results, input, message.id)
+    }
+  } catch (error) {
+    await createErrorMessage({
+      chatId: input.chatId,
+      responseToId: message.id,
     })
 
-    const reflectionResponse = response.data.choices[0].message?.content
-
-    if (!reflectionResponse) {
-      throw new Error("No response from OpenAI")
-    }
-
-    console.log(`Reflection Response: ${reflectionResponse}`)
-
-    try {
-      const parsedReflection = JSON.parse(
-        reflectionResponse
-      ) as ReflectionResponse
-
-      if (parsedReflection.status === "VALID") {
-        const results = await prisma.$queryRawUnsafe(parsedReflection.response)
-        const resultsString = JSON.stringify(results, (key, value) =>
-          typeof value === "bigint" ? value.toString() : value
-        )
-
-        console.log("Results:", results)
-
-        await prisma.message.create({
-          data: {
-            type: MessageType.TABLE,
-            results: resultsString,
-            content: "Here are the results:",
-            chatId: input.chatId,
-            role: MessageRole.ASSISTANT,
-            sql: parsedReflection.response,
-            responseToId: message.id,
-          },
-        })
-      }
-    } catch {}
+    console.error(error)
+  } finally {
+    revalidatePath(`/chats/${input.chatId}`)
   }
-
-  revalidatePath(`/chats/${input.chatId}`)
 }
 
 /*
