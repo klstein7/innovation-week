@@ -3,7 +3,7 @@
 import { useMemo } from "react"
 import { createChartMessage } from "@/actions/message"
 import { isMessagingAtom } from "@/atoms"
-import { Message, MessageRole } from "@prisma/client"
+import { Message, MessageRole, MessageType } from "@prisma/client"
 import { BarChart } from "@tremor/react"
 import { useAtom } from "jotai"
 import { BarChart3, Download } from "lucide-react"
@@ -36,17 +36,18 @@ export const MessageItem = ({ message }: Props) => {
   const renderMessage = () => {
     if (!parsedResults) return message.content
 
-    if (message.role === MessageRole.CHART) {
+    if (message.type === MessageType.CHART) {
       return (
-        <div className="flex w-full flex-col gap-2">
-          <h4 className="text-center text-sm font-light text-muted-foreground">
+        <div className="flex min-w-[980px] flex-col gap-2">
+          <h4 className="text-center text-xs text-muted-foreground/75">
             {parsedResults.title.toUpperCase()}
           </h4>
           <BarChart
-            className="h-64 w-full"
+            className="w-full"
             index="topic"
             categories={parsedResults.categories}
             data={parsedResults.data}
+            maxValue={parsedResults.maxValue}
           />
         </div>
       )
@@ -92,7 +93,7 @@ export const MessageItem = ({ message }: Props) => {
       )}
       <div
         className={cn(
-          "flex min-w-[50%] max-w-[calc(100vw-3rem)] flex-col overflow-x-auto rounded-md",
+          "flex w-fit max-w-[calc(100vw-3rem)] flex-col overflow-x-auto rounded-md",
           message.role === MessageRole.USER
             ? "bg-primary text-primary-foreground"
             : "bg-secondary text-secondary-foreground",

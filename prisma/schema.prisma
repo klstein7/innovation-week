@@ -28,6 +28,7 @@ model Message {
   type      MessageType @default(TEXT)
   role      MessageRole @default(USER)
   content   String      @db.Text ///@zod.string.min(1, { message: "Please enter a message" })
+  sql       String?
   results   Json?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
@@ -40,6 +41,20 @@ model Message {
 
   responses Message[] @relation("ResponseTo")
 }
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  TABLE
+  CHART
+}
+
+/// Exposed to AI
 
 model Application {
   id           String            @id @default(cuid())
@@ -65,20 +80,22 @@ model BusinessPartner {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  address   Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  addressId String
+
   applications Application[]
 }
 
-enum MessageRole {
-  USER
-  ASSISTANT
-  SYSTEM
-  CHART
-}
+model Address {
+  id        String   @id @default(cuid())
+  street    String
+  city      String
+  province  String
+  postal    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-enum MessageType {
-  TEXT
-  TABLE
-  CHART
+  businessPartners BusinessPartner[]
 }
 
 enum ApplicationStatus {

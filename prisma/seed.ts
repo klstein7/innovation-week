@@ -1,4 +1,4 @@
-import { faker } from "@faker-js/faker"
+import { faker, fakerEN_CA } from "@faker-js/faker"
 import {
   ApplicationStatus,
   BusinessLine,
@@ -20,6 +20,14 @@ async function main() {
           lastName: faker.person.lastName(),
           email: faker.internet.email(),
           phone: faker.phone.number("###-###-####"),
+          address: {
+            create: {
+              street: fakerEN_CA.location.streetAddress(),
+              city: fakerEN_CA.location.city(),
+              province: fakerEN_CA.location.state(),
+              postal: fakerEN_CA.location.zipCode(),
+            },
+          },
         },
       })
     )

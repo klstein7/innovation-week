@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/prisma/db"
-import { Message, MessageRole, Prisma } from "@prisma/client"
+import { Message, MessageRole, MessageType, Prisma } from "@prisma/client"
 import { ChatCompletionRequestMessageRoleEnum } from "openai"
 
 import { openai } from "@/lib/openai"
@@ -41,38 +41,73 @@ SELECT "User"."name", "User"."email" FROM "User" JOIN "Post" ON "User"."id" = "P
 Now consider these schemas:
 
 model Application {
-id String @id @default(cuid())
-amount Float
-language Language @default(ENGLISH)
-status ApplicationStatus @default(PENDING)
-productLine ProductLine @default(INPUT_FINANCING)
-businessLine BusinessLine @default(SMALL_BUSINESS)
-channel Channel @default(ALLIANCE_SERVICES)
-createdAt DateTime
-updatedAt DateTime
+  id           String            @id @default(cuid())
+  amount       Float
+  language     Language          @default(ENGLISH)
+  status       ApplicationStatus @default(PENDING)
+  productLine  ProductLine       @default(INPUT_FINANCING)
+  businessLine BusinessLine      @default(SMALL_BUSINESS)
+  channel      Channel           @default(ALLIANCE_SERVICES)
+  createdAt    DateTime
+  updatedAt    DateTime
 
-businessPartner BusinessPartner @relation(fields: [businessPartnerId], references: [id])
-businessPartnerId String
+  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id])
+  businessPartnerId String
 }
 
 model BusinessPartner {
-id String @id @default(cuid())
-firstName String
-lastName String
-email String
-phone String
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-applications Application[]
+  address   Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  addressId String
+
+  applications Application[]
 }
 
-enum Role { SYSTEM, USER, ASSISTANT }
-enum ApplicationStatus { PENDING, APPROVED, DENIED }
-enum ProductLine { INPUT_FINANCING }
-enum BusinessLine { SMALL_BUSINESS, CORPORATE_AND_COMMERCIAL }
-enum Channel { ALLIANCE_SERVICES, JET, ONLINE_SERVICES }
-enum Language { ENGLISH, FRENCH }
+model Address {
+  id        String   @id @default(cuid())
+  street    String
+  city      String
+  province  String
+  postal    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessPartners BusinessPartner[]
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+enum ProductLine {
+  INPUT_FINANCING
+}
+
+enum BusinessLine {
+  SMALL_BUSINESS
+  CORPORATE_AND_COMMERCIAL
+}
+
+enum Channel {
+  ALLIANCE_SERVICES
+  JET
+  ONLINE_SERVICES
+}
+
+enum Language {
+  ENGLISH
+  FRENCH
+}
+
 
 Using these schemas, create a PostgreSQL query to answer this question:
 {inputQuestion}"
@@ -87,12 +122,12 @@ If the query is syntactically correct and does not alter data, mark its status a
 Provide your answer as a JSON object in this format:
 {
   "status": "<APPROVED | DENIED>",
-  "message": "<The original or corrected SQL query | An error message >",
+  "response": "<The original or corrected SQL query | An error message >",
 }
 For instance, given the query SELECT "User"."name", "User"."email" FROM "User" JOIN "Post" ON "User"."id" = "Post"."userId" WHERE "Post"."title" LIKE '%AI%', your output should be:
 {
   "status": "APPROVED",
-  "message": "SELECT \"User\".\"name\", \"User\".\"email\" FROM \"User\" JOIN \"Post\" ON \"User\".\"id\" = \"Post\".\"userId\" WHERE \"Post\".\"title\" LIKE '%AI%'"
+  "response": "SELECT \"User\".\"name\", \"User\".\"email\" FROM \"User\" JOIN \"Post\" ON \"User\".\"id\" = \"Post\".\"userId\" WHERE \"Post\".\"title\" LIKE '%AI%'"
 }
 Now, apply these steps to the following SQL query:
 {inputQuery}"
@@ -171,6 +206,8 @@ Your output should be:
   "response": {
     "title": "Channel by Language",
     "categories": ["ALLIANCE_SERVICES", "JET", "ONLINE_SERVICES"],
+    "minValue": 45,
+    "maxValue": 59,
     "data": [
       {
         "topic": "FRENCH",
@@ -214,6 +251,8 @@ Your output should be:
   "response": {
     "title": "Number of species threatened with extinction",
     "categories": ["Number of threatened species"],
+    "minValue": 743,
+    "maxValue": 2488,
     "data": [
       {
         "topic": "Amphibians",
@@ -261,23 +300,6 @@ const createAIChatCompletion = async (
   return response
 }
 
-const createChatMessage = async (
-  chatId: string,
-  content: string,
-  responseToId?: string,
-  results?: string
-) => {
-  await prisma.message.create({
-    data: {
-      chatId,
-      content,
-      results,
-      role: MessageRole.ASSISTANT,
-      responseToId,
-    },
-  })
-}
-
 export const createMessage = async (
   input: Prisma.MessageUncheckedCreateInput
 ) => {
@@ -286,7 +308,7 @@ export const createMessage = async (
   console.log("Creating SQL...")
 
   const sqlResponse = await createAIChatCompletion(
-    "gpt-3.5-turbo",
+    "gpt-4",
     0,
     BASE_PROMPT.replace("{inputQuestion}", message.content)
   )
@@ -294,34 +316,54 @@ export const createMessage = async (
   console.log("Reflecting on SQL...")
 
   const reflection = await createAIChatCompletion(
-    "gpt-3.5-turbo",
+    "gpt-4",
     0,
     REFLECTION_PROMPT.replace("{inputQuery}", sqlResponse)
   )
 
   const parsedReflection = JSON.parse(reflection) as {
     status: "APPROVED" | "DENIED"
-    message: string
+    response: string
   }
 
   if (parsedReflection.status === "DENIED") {
-    await createChatMessage(
-      message.chatId,
-      parsedReflection.message,
-      message.id
-    )
+    await prisma.message.create({
+      data: {
+        content: parsedReflection.response,
+        chatId: message.chatId,
+        type: MessageType.TEXT,
+        responseToId: message.id,
+        role: MessageRole.SYSTEM,
+      },
+    })
   } else if (parsedReflection.status === "APPROVED") {
-    const results = await prisma.$queryRawUnsafe(parsedReflection.message)
-    const resultsString = JSON.stringify(results, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    )
+    try {
+      const results = await prisma.$queryRawUnsafe(parsedReflection.response)
+      const resultsString = JSON.stringify(results, (key, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
 
-    await createChatMessage(
-      message.chatId,
-      parsedReflection.message,
-      message.id,
-      resultsString
-    )
+      await prisma.message.create({
+        data: {
+          content: parsedReflection.response,
+          results: resultsString,
+          chatId: message.chatId,
+          type: MessageType.TABLE,
+          responseToId: message.id,
+          role: MessageRole.ASSISTANT,
+        },
+      })
+    } catch {
+      await prisma.message.create({
+        data: {
+          content: "Error trying to execute SQL query. Please try again.",
+          chatId: message.chatId,
+          type: MessageType.TEXT,
+          responseToId: message.id,
+          role: MessageRole.SYSTEM,
+        },
+      })
+    }
   }
 
   revalidatePath(`/chats/${message.chatId}`)
@@ -333,7 +375,7 @@ export const createChartMessage = async (
   console.log("Creating chart data...")
 
   const response = await createAIChatCompletion(
-    "gpt-3.5-turbo",
+    "gpt-4",
     0,
     CHART_PROMPT.replace("{inputData}", input.content)
   )
@@ -355,16 +397,18 @@ export const createChartMessage = async (
   if (parsedResponse.status === "UNAVAILABLE") {
     await prisma.message.create({
       data: {
-        ...input,
+        chatId: input.chatId,
+        type: MessageType.TEXT,
         role: MessageRole.SYSTEM,
-        content: "Unable to create chart from requested data",
+        content: "No chart available",
       },
     })
   } else if (parsedResponse.status === "AVAILABLE") {
     await prisma.message.create({
       data: {
-        ...input,
-        role: MessageRole.CHART,
+        chatId: input.chatId,
+        type: MessageType.CHART,
+        role: MessageRole.SYSTEM,
         content: parsedResponse.response?.title || "No chart available",
         results: JSON.stringify(parsedResponse.response),
       },
