@@ -62,7 +62,7 @@ export const MessageItem = ({ message }: Props) => {
         message.role === MessageRole.USER ? "items-end" : "items-start"
       )}
     >
-      {parsedResults && message.role === MessageRole.ASSISTANT && (
+      {parsedResults && false && message.role === MessageRole.ASSISTANT && (
         <div className="flex items-center gap-2">
           <CSVLink
             className="flex select-none items-center justify-center gap-2 rounded border px-3 py-1 text-xs hover:bg-primary hover:text-primary-foreground"
