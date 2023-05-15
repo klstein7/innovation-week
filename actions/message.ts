@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/prisma/db"
-import { Message, MessageRole, MessageType, Prisma } from "@prisma/client"
+import { MessageRole, MessageType, Prisma } from "@prisma/client"
 import { ChatCompletionRequestMessageRoleEnum } from "openai"
 
 import { openai } from "@/lib/openai"
@@ -110,15 +110,15 @@ enum Language {
 
 
 Using these schemas, create a PostgreSQL query to answer this question:
-{input}"
+{input}
 `
 
 const REFLECTION_PROMPT = `
 As an artificial intelligence model, analyze the provided SQL query and follow these steps:
 
-Determine whether the query alters data. If so, mark its status as 'DENIED'.
-Check if the query is syntactically incorrect. If it is, correct the syntax and mark its status as 'APPROVED'.
-If the query is syntactically correct and does not alter data, mark its status as 'APPROVED'.
+Determine whether the query alters data. If so, mark its status as 'INVALID'.
+Check if the query is syntactically incorrect. If it is, correct the syntax and mark its status as 'VALID'.
+If the query is syntactically correct and does not alter data, mark its status as 'VALID'.
 Provide your answer as a JSON object in this format:
 {
   "status": "<VALID | INVALID>",
@@ -130,7 +130,7 @@ For instance, given the query SELECT "User"."name", "User"."email" FROM "User" J
   "response": "SELECT \"User\".\"name\", \"User\".\"email\" FROM \"User\" JOIN \"Post\" ON \"User\".\"id\" = \"Post\".\"userId\" WHERE \"Post\".\"title\" LIKE '%AI%'"
 }
 Now, apply these steps to the following SQL query:
-{input}"
+{input}
 `
 
 const CHART_PROMPT = `
@@ -139,7 +139,7 @@ Your response will be evaluated based on your understanding of the underlying da
 
 Please follow these steps:
 
-First, evaluate the provided dataset. If the dataset is not suitable for creating a bar chart, please indicate this by setting the 'status' field in your output JSON object to 'UNAVAILABLE'. If the dataset is suitable for creating a bar chart, indicate this by setting the 'status' field to 'AVAILABLE'.
+First, evaluate the provided dataset. If the dataset is not suitable for creating a bar chart, please indicate this by setting the 'status' field in your output JSON object to 'INVALID'. If the dataset is suitable for creating a bar chart, indicate this by setting the 'status' field to 'VALID'.
 
 Next, you need to restructure the dataset. The restructured data should include a title for the chart, an array of categories, and an array of data objects. Each data object should represent a separate bar in the bar chart and contain the following fields: 'topic', and one field for each category, where the field name is the category name and the field value is the corresponding data value.
 
@@ -323,6 +323,7 @@ const createChatCompletion = async ({
   const response = await openai.createChatCompletion({
     model: "gpt-3.5-turbo",
     temperature: 0,
+    max_tokens: 2048,
     messages: [
       {
         content: prompt.replace("{input}", input),
@@ -343,13 +344,13 @@ const processSQLResponse = async (
   input: Prisma.MessageUncheckedCreateInput
 ) => {
   const sqlResponse = await createChatCompletion({
-    prompt: BASE_PROMPT.replace("{input}", input.content),
+    prompt: BASE_PROMPT,
     input: input.content,
     role: ChatCompletionRequestMessageRoleEnum.User,
   })
 
   const reflectionResponse = await createChatCompletion({
-    prompt: REFLECTION_PROMPT.replace("{input}", sqlResponse),
+    prompt: REFLECTION_PROMPT,
     input: sqlResponse,
     role: ChatCompletionRequestMessageRoleEnum.System,
   })
@@ -378,6 +379,8 @@ const processChartResponse = async (
     input: resultsString,
     role: ChatCompletionRequestMessageRoleEnum.System,
   })
+
+  console.log("chartResponse", chartResponse)
 
   const parsedChartResponse = JSON.parse(chartResponse) as ChartResponse
 
@@ -443,150 +446,3 @@ export const createMessage = async (
     revalidatePath(`/chats/${input.chatId}`)
   }
 }
-
-/*
-const createAIChatCompletion = async (
-  model: string,
-  temperature: number,
-  messageContent: string
-) => {
-  const completion = await openai.createChatCompletion({
-    model,
-    temperature,
-    messages: [
-      {
-        content: messageContent,
-        role: ChatCompletionRequestMessageRoleEnum.User,
-      },
-    ],
-  })
-
-  const response = completion.data.choices[0].message?.content
-
-  if (!response) {
-    throw new Error("No response from OpenAI")
-  }
-
-  console.log(`Response: ${response}`)
-
-  return response
-}
-
-export const createMessage = async (
-  input: Prisma.MessageUncheckedCreateInput
-) => {
-  const message = await prisma.message.create({ data: input })
-
-  console.log("Creating SQL...")
-
-  const sqlResponse = await createAIChatCompletion(
-    "gpt-3.5-turbo",
-    0,
-    BASE_PROMPT.replace("{inputQuestion}", message.content)
-  )
-
-  console.log("Reflecting on SQL...")
-
-  const reflection = await createAIChatCompletion(
-    "gpt-3.5-turbo",
-    0,
-    REFLECTION_PROMPT.replace("{inputQuery}", sqlResponse)
-  )
-
-  const parsedReflection = JSON.parse(reflection) as {
-    status: "APPROVED" | "DENIED"
-    response: string
-  }
-
-  if (parsedReflection.status === "DENIED") {
-    await prisma.message.create({
-      data: {
-        content: parsedReflection.response,
-        chatId: message.chatId,
-        type: MessageType.TEXT,
-        responseToId: message.id,
-        role: MessageRole.SYSTEM,
-      },
-    })
-  } else if (parsedReflection.status === "APPROVED") {
-    try {
-      const results = await prisma.$queryRawUnsafe(parsedReflection.response)
-      const resultsString = JSON.stringify(results, (key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-
-      await prisma.message.create({
-        data: {
-          content: parsedReflection.response,
-          results: resultsString,
-          chatId: message.chatId,
-          type: MessageType.TABLE,
-          responseToId: message.id,
-          role: MessageRole.ASSISTANT,
-        },
-      })
-    } catch {
-      await prisma.message.create({
-        data: {
-          content: "Error trying to execute SQL query. Please try again.",
-          chatId: message.chatId,
-          type: MessageType.TEXT,
-          responseToId: message.id,
-          role: MessageRole.SYSTEM,
-        },
-      })
-    }
-  }
-
-  revalidatePath(`/chats/${message.chatId}`)
-}
-
-export const createChartMessage = async (
-  input: Prisma.MessageUncheckedCreateInput
-) => {
-  console.log("Creating chart data...")
-
-  const response = await createAIChatCompletion(
-    "gpt-3.5-turbo",
-    0,
-    CHART_PROMPT.replace("{inputData}", input.content)
-  )
-
-  console.log(`Response: ${response}`)
-
-  const parsedResponse = JSON.parse(response) as {
-    status: "AVAILABLE" | "UNAVAILABLE"
-    response: {
-      title: string
-      categories: string[]
-      data: {
-        topic: string
-        [key: string]: string
-      }[]
-    } | null
-  }
-
-  if (parsedResponse.status === "UNAVAILABLE") {
-    await prisma.message.create({
-      data: {
-        chatId: input.chatId,
-        type: MessageType.TEXT,
-        role: MessageRole.SYSTEM,
-        content: "No chart available",
-      },
-    })
-  } else if (parsedResponse.status === "AVAILABLE") {
-    await prisma.message.create({
-      data: {
-        chatId: input.chatId,
-        type: MessageType.CHART,
-        role: MessageRole.SYSTEM,
-        content: parsedResponse.response?.title || "No chart available",
-        results: JSON.stringify(parsedResponse.response),
-      },
-    })
-  }
-
-  revalidatePath(`/chats/${input.chatId}`)
-}
-*/

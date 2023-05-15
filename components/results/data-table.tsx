@@ -23,7 +23,6 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({
   data,
 }: DataTableProps<TData, TValue>) {
-  console.log(data)
   let columns = []
   columns = Object.keys(data[0] ?? []).map((key) => ({
     accessorKey: key,
