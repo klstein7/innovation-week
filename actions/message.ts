@@ -121,12 +121,12 @@ Check if the query is syntactically incorrect. If it is, correct the syntax and 
 If the query is syntactically correct and does not alter data, mark its status as 'APPROVED'.
 Provide your answer as a JSON object in this format:
 {
-  "status": "<APPROVED | DENIED>",
+  "status": "<VALID | INVALID>",
   "response": "<The original or corrected SQL query | An error message >",
 }
 For instance, given the query SELECT "User"."name", "User"."email" FROM "User" JOIN "Post" ON "User"."id" = "Post"."userId" WHERE "Post"."title" LIKE '%AI%', your output should be:
 {
-  "status": "APPROVED",
+  "status": "VALID",
   "response": "SELECT \"User\".\"name\", \"User\".\"email\" FROM \"User\" JOIN \"Post\" ON \"User\".\"id\" = \"Post\".\"userId\" WHERE \"Post\".\"title\" LIKE '%AI%'"
 }
 Now, apply these steps to the following SQL query:
@@ -273,6 +273,92 @@ Your output should be:
 Now, please apply these steps and principles to the following dataset: {inputData}
 `
 
+type ReflectionResponse = {
+  status: "VALID" | "INVALID"
+  response: string
+}
+
+export const createMessage = async (
+  input: Prisma.MessageUncheckedCreateInput
+) => {
+  console.log(input)
+  if (input.type === MessageType.TABLE) {
+    const message = await prisma.message.create({ data: input })
+
+    console.log("Creating SQL...")
+
+    let response = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      temperature: 0,
+      messages: [
+        {
+          content: BASE_PROMPT.replace("{inputQuestion}", input.content),
+          role: ChatCompletionRequestMessageRoleEnum.User,
+        },
+      ],
+    })
+
+    const sqlResponse = response.data.choices[0].message?.content
+
+    if (!sqlResponse) {
+      throw new Error("No response from OpenAI")
+    }
+
+    console.log(`SQL Response: ${sqlResponse}`)
+
+    console.log("Reflecting on SQL...")
+
+    response = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      temperature: 0,
+      messages: [
+        {
+          content: REFLECTION_PROMPT.replace("{inputQuery}", sqlResponse),
+          role: ChatCompletionRequestMessageRoleEnum.System,
+        },
+      ],
+    })
+
+    const reflectionResponse = response.data.choices[0].message?.content
+
+    if (!reflectionResponse) {
+      throw new Error("No response from OpenAI")
+    }
+
+    console.log(`Reflection Response: ${reflectionResponse}`)
+
+    try {
+      const parsedReflection = JSON.parse(
+        reflectionResponse
+      ) as ReflectionResponse
+
+      if (parsedReflection.status === "VALID") {
+        const results = await prisma.$queryRawUnsafe(parsedReflection.response)
+        const resultsString = JSON.stringify(results, (key, value) =>
+          typeof value === "bigint" ? value.toString() : value
+        )
+
+        console.log("Results:", results)
+
+        await prisma.message.create({
+          data: {
+            type: MessageType.TABLE,
+            results: resultsString,
+            content: "Here are the results:",
+            chatId: input.chatId,
+            role: MessageRole.ASSISTANT,
+            sql: parsedReflection.response,
+            responseToId: message.id,
+          },
+        })
+      }
+    } catch {}
+  }
+
+  revalidatePath(`/chats/${input.chatId}`)
+}
+
+/*
 const createAIChatCompletion = async (
   model: string,
   temperature: number,
@@ -308,7 +394,7 @@ export const createMessage = async (
   console.log("Creating SQL...")
 
   const sqlResponse = await createAIChatCompletion(
-    "gpt-4",
+    "gpt-3.5-turbo",
     0,
     BASE_PROMPT.replace("{inputQuestion}", message.content)
   )
@@ -316,7 +402,7 @@ export const createMessage = async (
   console.log("Reflecting on SQL...")
 
   const reflection = await createAIChatCompletion(
-    "gpt-4",
+    "gpt-3.5-turbo",
     0,
     REFLECTION_PROMPT.replace("{inputQuery}", sqlResponse)
   )
@@ -375,7 +461,7 @@ export const createChartMessage = async (
   console.log("Creating chart data...")
 
   const response = await createAIChatCompletion(
-    "gpt-4",
+    "gpt-3.5-turbo",
     0,
     CHART_PROMPT.replace("{inputData}", input.content)
   )
@@ -417,3 +503,4 @@ export const createChartMessage = async (
 
   revalidatePath(`/chats/${input.chatId}`)
 }
+*/

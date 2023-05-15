@@ -53,6 +53,7 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
             chatId: values.chatId,
             content: values.content,
             type: MessageType.TEXT,
+            sql: null,
             results: null,
             responseToId: null,
             role: MessageRole.USER,
@@ -79,7 +80,12 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
           <Send className="h-5 w-5 text-ring" />
         </div>
       </div>
-      <Select defaultValue={MessageType.TABLE}>
+      <Select
+        defaultValue={defaultValues?.type}
+        onValueChange={(value: MessageType) => {
+          form.setValue("type", value)
+        }}
+      >
         <SelectTrigger className="w-[140px]">
           <SelectValue placeholder="Select type..." />
         </SelectTrigger>

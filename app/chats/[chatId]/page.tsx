@@ -1,4 +1,5 @@
 import { prisma } from "@/prisma/db"
+import { MessageType } from "@prisma/client"
 
 import { CreateMessageForm } from "@/components/messages/create-message-form"
 import { MessageList } from "@/components/messages/message-list"
@@ -25,6 +26,7 @@ export default async function ChatPage({ params }: Props) {
         defaultValues={{
           chatId: params.chatId,
           content: "",
+          type: MessageType.TABLE,
         }}
       />
     </section>
