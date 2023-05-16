@@ -274,10 +274,12 @@ Now, please apply these steps and principles to the following dataset:
 `
 
 const TEXT_PROMPT = `
-"As an AI analyst, you are tasked to effectively analyze the provided data and provide a short and concise summary of it. Please follow these guidelines:
+As an AI analyst, you are tasked to effectively analyze the provided data and provide a short and concise summary of it. Please follow these guidelines:
 
-Assume the data that is given is all that is needed to answer the question.
-Craft a short and concise response by using the data to answer the question.
+Craft a short and concise response using the data retrieved from the SQL query. Analyze the results of the SQL query and incorporate relevant information to answer the given question. 
+If the question asks about a specific date range, assume that the SQL result provides data in that date range.
+If the SQL result provides a count, assume that the count represents the answer to the question.
+
 For example, given the data provided:
 
 [
@@ -303,16 +305,6 @@ There has been 48 French applications through Alliance Services, 45 French throu
 
 Now, please apply these steps and principles to the following dataset and question: {input} {question}
 `
-
-// const TEXT_PROMPT = `Given an input question and SQL query, look at the results of the query and return the answer in a short and concise sentence.
-// Use the following format:
-
-// Question: "Question here"
-// SQLResult: "Result of the SQLQuery"
-// Answer: "Final answer here"
-
-// Question: {input}`
-
 
 
 type ReflectionResponse = {
