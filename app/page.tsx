@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
 import { prisma } from "@/prisma/db"
 
+export const revalidate = 1
+
 export default async function IndexPage() {
   const count = await prisma.chat.count()
   const chat = await prisma.chat.create({
