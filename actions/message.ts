@@ -273,6 +273,66 @@ Now, please apply these steps and principles to the following dataset:
 {input}
 `
 
+const TEXT_PROMPT = `
+As an AI analyst, you are tasked to effectively analyze the provided data and provide a short and concise summary of it. Please follow these guidelines:
+
+Craft a short and concise response using the data retrieved from the SQL query. Analyze the results of the SQL query and incorporate relevant information to answer the given question. 
+If the question asks about a specific date range, assume that the SQL result provides data in that date range.
+If the SQL result provides a count, assume that the count represents the answer to the question.
+
+For example, given the dataset provided:
+
+[
+  {
+    "language": "FRENCH",
+    "channel": "ALLIANCE_SERVICES",
+    "count": "48"
+  },
+  {
+    "language": "FRENCH",
+    "channel": "JET",
+    "count": "45"
+  },
+  {
+    "language": "ENGLISH",
+    "channel": "ALLIANCE_SERVICES",
+    "count": "46"
+  }
+]
+
+And the question:
+
+How many Jet and Alliance Services applications were received in French? How many Alliance Services applications were received in English?
+
+The following is an acceptable response:
+
+There has been 48 French applications through Alliance Services, 45 French through Jet, and 46 English applications through Alliance Services.
+
+Another example:
+
+Given the dataset provided:
+
+[{"count": "2"}]
+
+And the question:
+
+How many applications were received in the last 30 days?
+
+The following is an acceptable response:
+
+There has been 2 applications received in the last 30 days.
+
+Now, please apply these steps and principles to the following dataset and question: 
+
+Dataset:
+
+{input} 
+
+Question:
+
+{question}
+`
+
 type ReflectionResponse = {
   status: "VALID" | "INVALID"
   response: string
@@ -311,12 +371,14 @@ export const createErrorMessage = async ({
 
 type OpenAiCompletionRequestParams = {
   prompt: string
+  question: string
   input: string
   role: ChatCompletionRequestMessageRoleEnum
 }
 
 const createChatCompletion = async ({
   prompt,
+  question,
   input,
   role,
 }: OpenAiCompletionRequestParams) => {
@@ -326,7 +388,9 @@ const createChatCompletion = async ({
     max_tokens: 2048,
     messages: [
       {
-        content: prompt.replace("{input}", input),
+        content: prompt
+          .replace("{input}", input)
+          .replace("{question}", question),
         role,
       },
     ],
@@ -345,12 +409,14 @@ const processSQLResponse = async (
 ) => {
   const sqlResponse = await createChatCompletion({
     prompt: BASE_PROMPT,
+    question: "",
     input: input.content,
     role: ChatCompletionRequestMessageRoleEnum.User,
   })
 
   const reflectionResponse = await createChatCompletion({
     prompt: REFLECTION_PROMPT,
+    question: "",
     input: sqlResponse,
     role: ChatCompletionRequestMessageRoleEnum.System,
   })
@@ -376,6 +442,7 @@ const processChartResponse = async (
 ) => {
   const chartResponse = await createChatCompletion({
     prompt: CHART_PROMPT,
+    question: "",
     input: resultsString,
     role: ChatCompletionRequestMessageRoleEnum.System,
   })
@@ -404,13 +471,41 @@ const processChartResponse = async (
   }
 }
 
+const processTextResponse = async (
+  resultsString: string,
+  results: any,
+  input: Prisma.MessageUncheckedCreateInput,
+  messageId: string
+) => {
+  const textResponse = await createChatCompletion({
+    prompt: TEXT_PROMPT,
+    question: input.content,
+    input: resultsString,
+    role: ChatCompletionRequestMessageRoleEnum.System,
+  })
+
+  await prisma.message.create({
+    data: {
+      type: MessageType.TEXT,
+      content: textResponse,
+      chatId: input.chatId,
+      role: MessageRole.ASSISTANT,
+      results: textResponse,
+      sql: results.parsedReflection.response,
+      responseToId: messageId,
+    },
+  })
+}
+
 export const createMessage = async (
   input: Prisma.MessageUncheckedCreateInput
 ) => {
   const message = await prisma.message.create({ data: input })
+  console.log(input)
 
   try {
     const results = await processSQLResponse(input)
+    console.log(results)
 
     if (!results) {
       throw new Error("Invalid SQL response")
@@ -419,6 +514,7 @@ export const createMessage = async (
     const resultsString = JSON.stringify(results.results, (key, value) =>
       typeof value === "bigint" ? value.toString() : value
     )
+    console.log(resultsString)
 
     if (input.type === MessageType.TABLE) {
       await prisma.message.create({
@@ -435,6 +531,7 @@ export const createMessage = async (
     } else if (input.type === MessageType.CHART) {
       await processChartResponse(resultsString, results, input, message.id)
     } else if (input.type === MessageType.TEXT) {
+      await processTextResponse(resultsString, results, input, message.id)
     }
   } catch (error) {
     await createErrorMessage({
