@@ -541,6 +541,15 @@ export const createMessage = async (
       try {
         await processTextResponse(resultsString, results, input, message.id)
       } catch {
+        await prisma.message.create({
+          data: {
+            type: MessageType.TEXT,
+            content: "Token limit exceeded. Displaying results as a table.",
+            chatId: input.chatId,
+            role: MessageRole.ASSISTANT,
+            responseToId: message.id,
+          },
+        })
         await processTableResponse(resultsString, results, input, message.id)
       }
     }
