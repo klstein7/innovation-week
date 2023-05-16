@@ -276,8 +276,8 @@ Now, please apply these steps and principles to the following dataset:
 const TEXT_PROMPT = `
 "As an AI analyst, you are tasked to effectively analyze the provided data and provide a short and concise summary of it. Please follow these guidelines:
 
-Review the given data.
-Craft a short and concise response that answers the given question by looking at the data.
+Assume the data that is given is all that is needed to answer the question.
+Craft a short and concise response by using the data to answer the question.
 For example, given the data provided:
 
 [
