@@ -1,12 +1,22 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { createMessage } from "@/actions/message"
-import { isMessagingAtom, messagesAtom } from "@/atoms"
+import {
+  createChartMessage,
+  createChatCompletion,
+  createTableMessage,
+  createTextMessage,
+  getSqlReflection,
+  getSqlResults,
+} from "@/actions/openai"
+import { isMessagingAtom, messagesAtom, messagingStatusAtom } from "@/atoms"
 import { MessageUncheckedCreateInputSchema } from "@/prisma/generated/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { MessageRole, MessageType } from "@prisma/client"
 import { useAtom } from "jotai"
 import { BarChart, Database, MessageCircle, Send } from "lucide-react"
+import { ChatCompletionRequestMessageRoleEnum } from "openai"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
@@ -24,6 +34,9 @@ type Props = {
 }
 
 export const CreateMessageForm = ({ defaultValues }: Props) => {
+  const router = useRouter()
+
+  const [messagingStatus, setMessagingStatus] = useAtom(messagingStatusAtom)
   const [isMessaging, setIsMessaging] = useAtom(isMessagingAtom)
   const [messages, setMessages] = useAtom(messagesAtom)
   const form = useForm<z.infer<typeof MessageUncheckedCreateInputSchema>>({
@@ -58,12 +71,60 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
 
         await createMessage(values)
 
+        setMessagingStatus("GENERATING")
+        const sql = await createChatCompletion({
+          question: values.content,
+          role: ChatCompletionRequestMessageRoleEnum.System,
+          type: "SQL",
+        })
+
+        setMessagingStatus("REFLECTING")
+        const reflection = await getSqlReflection({
+          input: sql,
+          chatId: values.chatId,
+        })
+
+        if (reflection?.status === "VALID") {
+          setMessagingStatus("EXECUTING")
+          const results = await getSqlResults({
+            sql: reflection.response,
+          })
+
+          if (values.type === MessageType.TABLE) {
+            await createTableMessage({
+              chatId: values.chatId,
+              results,
+              sql: reflection.response,
+            })
+          } else if (values.type === MessageType.TEXT) {
+            await createTextMessage({
+              chatId: values.chatId,
+              question: values.content,
+              results,
+              sql: reflection.response,
+            })
+          } else if (values.type === MessageType.CHART) {
+            await createChartMessage({
+              chatId: values.chatId,
+              question: values.content,
+              results,
+              sql: reflection.response,
+            })
+          }
+        }
+
+        setMessagingStatus("DONE")
+
+        // await createMessage(values)
+
         form.reset({
           ...watchForm,
           content: "",
         })
 
         setIsMessaging(false)
+
+        router.refresh()
       })}
     >
       <div className="relative w-full max-w-2xl">

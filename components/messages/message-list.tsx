@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { isMessagingAtom, messagesAtom } from "@/atoms"
+import { isMessagingAtom, messagesAtom, messagingStatusAtom } from "@/atoms"
 import { Message } from "@prisma/client"
 import { useAtom } from "jotai"
 import { Loader2 } from "lucide-react"
@@ -15,12 +15,26 @@ type Props = {
 }
 
 export const MessageList = ({ messages }: Props) => {
+  const [messagingStatus] = useAtom(messagingStatusAtom)
   const [optimisticMessages, setMessages] = useAtom(messagesAtom)
   const [isMessaging] = useAtom(isMessagingAtom)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  const getMessageStatus = () => {
+    switch (messagingStatus) {
+      case "GENERATING":
+        return "Generating SQL..."
+      case "REFLECTING":
+        return "Reflecting on SQL..."
+      case "EXECUTING":
+        return "Executing SQL..."
+      case "DONE":
+        return "Done!"
+    }
   }
 
   useEffect(() => {
@@ -46,7 +60,9 @@ export const MessageList = ({ messages }: Props) => {
         )}
       >
         <Loader2 className="h-4 w-4 animate-spin text-ring" />
-        <div className="text-xs text-muted-foreground">Thinking...</div>
+        <div className="text-xs text-muted-foreground">
+          {getMessageStatus()}
+        </div>
       </div>
     </div>
   )
