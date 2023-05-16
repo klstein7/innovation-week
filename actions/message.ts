@@ -273,6 +273,42 @@ Now, please apply these steps and principles to the following dataset:
 {input}
 `
 
+const TEXT_PROMPT = `
+"As an AI analyst, you are tasked to effectively analyze the provided data and provide a short and concise summary of it. Please follow these guidelines:
+
+Review the given data.
+Craft a short and concise response that highlights the key findings.
+For example, given the data provided:
+
+[
+  {
+    "language": "FRENCH",
+    "channel": "ALLIANCE_SERVICES",
+    "count": "48"
+  },
+  {
+    "language": "FRENCH",
+    "channel": "JET",
+    "count": "45"
+  },
+  {
+    "language": "ENGLISH",
+    "channel": "ALLIANCE_SERVICES",
+    "count": "46"
+  }
+]
+
+The following is an acceptable response:
+There has been 48 French applications through Alliance Services, 45 French through Jet, and 46 English applications through Alliance Services.
+
+
+Ensure that your response showcases the following:
+
+An accurate and concise short summary of the data, highlighting the key insights.
+
+Now, please apply these steps and principles to the following dataset: {inputData}
+`
+
 type ReflectionResponse = {
   status: "VALID" | "INVALID"
   response: string
@@ -401,6 +437,32 @@ const processChartResponse = async (
   }
 }
 
+const processTextResponse = async (
+  resultsString: string,
+  results: any,
+  input: Prisma.MessageUncheckedCreateInput,
+  messageId: string
+) => {
+  const textResponse = await createChatCompletion({
+    prompt: TEXT_PROMPT,
+    input: resultsString,
+    role: ChatCompletionRequestMessageRoleEnum.System,
+  })
+
+  await prisma.message.create({
+    data: {
+      type: MessageType.TEXT,
+      content: textResponse,
+      chatId: input.chatId,
+      role: MessageRole.ASSISTANT,
+      results: textResponse,
+      sql: results.parsedReflection.response,
+      responseToId: messageId,
+    },
+  })
+
+}
+
 export const createMessage = async (
   input: Prisma.MessageUncheckedCreateInput
 ) => {
@@ -408,6 +470,7 @@ export const createMessage = async (
 
   try {
     const results = await processSQLResponse(input)
+    console.log(results)
 
     if (!results) {
       throw new Error("Invalid SQL response")
@@ -431,6 +494,8 @@ export const createMessage = async (
       })
     } else if (input.type === MessageType.CHART) {
       await processChartResponse(resultsString, results, input, message.id)
+    } else if (input.type === MessageType.TEXT) {
+      await processTextResponse(resultsString, results, input, message.id)
     }
   } catch (error) {
     await createErrorMessage({
