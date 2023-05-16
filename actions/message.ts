@@ -8,6 +8,7 @@ import { ChatCompletionRequestMessageRoleEnum } from "openai"
 import { openai } from "@/lib/openai"
 
 const BASE_PROMPT = `
+Today's date is ${new Date().toLocaleDateString()}.
 You are a database engineer tasked with creating a PostgreSQL query using the provided Prisma model schemas. Your query must answer a specific question, and may require JOINs, WHERE clauses, or aggregations. Follow these guidelines:
 
 Use double quotes for table and column names.
@@ -274,6 +275,7 @@ Now, please apply these steps and principles to the following dataset:
 `
 
 const TEXT_PROMPT = `
+Today's date is: ${new Date().toLocaleDateString()}
 As an AI analyst, you are tasked to effectively analyze the provided data and provide a short and concise summary of it. Please follow these guidelines:
 
 Craft a short and concise response using the data retrieved from the SQL query. Analyze the results of the SQL query and incorporate relevant information to answer the given question. 
@@ -354,14 +356,16 @@ type ChartResponse = {
 export const createErrorMessage = async ({
   chatId,
   responseToId,
+  message,
 }: {
   chatId: string
   responseToId: string
+  message: string
 }) => {
   await prisma.message.create({
     data: {
       type: MessageType.TEXT,
-      content: "Sorry, unable to process your request. Please try again.",
+      content: message,
       chatId,
       role: MessageRole.ASSISTANT,
       responseToId,
@@ -467,6 +471,8 @@ const processChartResponse = async (
     await createErrorMessage({
       chatId: input.chatId,
       responseToId: messageId,
+      message:
+        "Sorry, I couldn't create a chart for that. Please modify your prompt and try again.",
     })
   }
 }
@@ -508,7 +514,7 @@ export const createMessage = async (
     console.log(results)
 
     if (!results) {
-      throw new Error("Invalid SQL response")
+      throw new Error("Invalid SQL response from OpenAI")
     }
 
     const resultsString = JSON.stringify(results.results, (key, value) =>
@@ -531,12 +537,19 @@ export const createMessage = async (
     } else if (input.type === MessageType.CHART) {
       await processChartResponse(resultsString, results, input, message.id)
     } else if (input.type === MessageType.TEXT) {
-      await processTextResponse(resultsString, results, input, message.id)
+      try {
+        await processTextResponse(resultsString, results, input, message.id)
+      } catch {
+        throw new Error(
+          "Token limit exceeded, please try to use the Table or Chart type instead."
+        )
+      }
     }
-  } catch (error) {
+  } catch (error: any) {
     await createErrorMessage({
       chatId: input.chatId,
       responseToId: message.id,
+      message: error.message,
     })
 
     console.error(error)
