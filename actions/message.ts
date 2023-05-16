@@ -277,7 +277,7 @@ const TEXT_PROMPT = `
 "As an AI analyst, you are tasked to effectively analyze the provided data and provide a short and concise summary of it. Please follow these guidelines:
 
 Review the given data.
-Craft a short and concise response that highlights the key findings.
+Craft a short and concise response that answers the given question by looking at the data.
 For example, given the data provided:
 
 [
@@ -301,13 +301,19 @@ For example, given the data provided:
 The following is an acceptable response:
 There has been 48 French applications through Alliance Services, 45 French through Jet, and 46 English applications through Alliance Services.
 
-
-Ensure that your response showcases the following:
-
-An accurate and concise short summary of the data, highlighting the key insights.
-
-Now, please apply these steps and principles to the following dataset: {inputData}
+Now, please apply these steps and principles to the following dataset and question: {input} {question}
 `
+
+// const TEXT_PROMPT = `Given an input question and SQL query, look at the results of the query and return the answer in a short and concise sentence.
+// Use the following format:
+
+// Question: "Question here"
+// SQLResult: "Result of the SQLQuery"
+// Answer: "Final answer here"
+
+// Question: {input}`
+
+
 
 type ReflectionResponse = {
   status: "VALID" | "INVALID"
@@ -347,12 +353,14 @@ export const createErrorMessage = async ({
 
 type OpenAiCompletionRequestParams = {
   prompt: string
+  question: string
   input: string
   role: ChatCompletionRequestMessageRoleEnum
 }
 
 const createChatCompletion = async ({
   prompt,
+  question,
   input,
   role,
 }: OpenAiCompletionRequestParams) => {
@@ -362,7 +370,7 @@ const createChatCompletion = async ({
     max_tokens: 2048,
     messages: [
       {
-        content: prompt.replace("{input}", input),
+        content: prompt.replace("{input}", input).replace("{question}", question),
         role,
       },
     ],
@@ -381,12 +389,14 @@ const processSQLResponse = async (
 ) => {
   const sqlResponse = await createChatCompletion({
     prompt: BASE_PROMPT,
+    question: "",
     input: input.content,
     role: ChatCompletionRequestMessageRoleEnum.User,
   })
 
   const reflectionResponse = await createChatCompletion({
     prompt: REFLECTION_PROMPT,
+    question: "",
     input: sqlResponse,
     role: ChatCompletionRequestMessageRoleEnum.System,
   })
@@ -412,6 +422,7 @@ const processChartResponse = async (
 ) => {
   const chartResponse = await createChatCompletion({
     prompt: CHART_PROMPT,
+    question: "",
     input: resultsString,
     role: ChatCompletionRequestMessageRoleEnum.System,
   })
@@ -448,6 +459,7 @@ const processTextResponse = async (
 ) => {
   const textResponse = await createChatCompletion({
     prompt: TEXT_PROMPT,
+    question: input.content,
     input: resultsString,
     role: ChatCompletionRequestMessageRoleEnum.System,
   })
@@ -470,6 +482,8 @@ export const createMessage = async (
   input: Prisma.MessageUncheckedCreateInput
 ) => {
   const message = await prisma.message.create({ data: input })
+  console.log(input)
+
 
   try {
     const results = await processSQLResponse(input)
@@ -482,6 +496,7 @@ export const createMessage = async (
     const resultsString = JSON.stringify(results.results, (key, value) =>
       typeof value === "bigint" ? value.toString() : value
     )
+    console.log(resultsString)
 
     if (input.type === MessageType.TABLE) {
       await prisma.message.create({
