@@ -434,6 +434,7 @@ export const createMessage = async (
       })
     } else if (input.type === MessageType.CHART) {
       await processChartResponse(resultsString, results, input, message.id)
+    } else if (input.type === MessageType.TEXT) {
     }
   } catch (error) {
     await createErrorMessage({

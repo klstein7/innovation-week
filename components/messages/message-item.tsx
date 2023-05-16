@@ -5,13 +5,15 @@ import { isMessagingAtom } from "@/atoms"
 import { Message, MessageRole, MessageType } from "@prisma/client"
 import { BarChart } from "@tremor/react"
 import { useAtom } from "jotai"
-import { Download } from "lucide-react"
+import { Copy, Download } from "lucide-react"
 import moment from "moment"
 import { CSVLink } from "react-csv"
 
 import { cn } from "@/lib/utils"
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
 
 import { DataTable } from "../results/data-table"
+import { useToast } from "../ui/use-toast"
 
 type Props = {
   message: Message
@@ -72,8 +74,10 @@ const MessageItemContent = ({
 }
 
 export const MessageItem = ({ message }: Props) => {
+  const [, copy] = useCopyToClipboard()
   const [isMessaging, setIsMessaging] = useAtom(isMessagingAtom)
   const parsedResults = useParsedResults(message.results as string)
+  const { toast } = useToast()
 
   const getCsvData = useCallback(() => {
     if (!parsedResults) return []
@@ -118,13 +122,21 @@ export const MessageItem = ({ message }: Props) => {
     >
       <div className="flex items-center gap-2">
         <CSVLinkWrapper data={getCsvData()} />
-        <button
-          onClick={() => {
-            console.log(message.sql)
-          }}
-        >
-          SQL
-        </button>
+        {message.sql && (
+          <button
+            className="flex select-none items-center justify-center gap-2 rounded border px-3 py-1 text-xs hover:bg-primary hover:text-primary-foreground"
+            onClick={() => {
+              copy(message.sql!)
+              toast({
+                title: "Copied to clipboard",
+                description: "The SQL query has been copied to your clipboard.",
+              })
+            }}
+          >
+            <Copy className="h-3 w-3" />
+            SQL
+          </button>
+        )}
       </div>
       <div
         className={cn(
