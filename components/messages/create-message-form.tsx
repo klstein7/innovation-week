@@ -6,15 +6,7 @@ import { MessageUncheckedCreateInputSchema } from "@/prisma/generated/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { MessageRole, MessageType } from "@prisma/client"
 import { useAtom } from "jotai"
-import {
-  BarChart,
-  Database,
-  Languages,
-  Loader2,
-  MessageCircle,
-  Send,
-  TextCursor,
-} from "lucide-react"
+import { BarChart, Database, MessageCircle, Send } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
@@ -38,6 +30,8 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
     resolver: zodResolver(MessageUncheckedCreateInputSchema),
     defaultValues,
   })
+
+  const watchForm = form.watch()
 
   return (
     <form
@@ -64,7 +58,10 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
 
         await createMessage(values)
 
-        form.reset()
+        form.reset({
+          ...watchForm,
+          content: "",
+        })
 
         setIsMessaging(false)
       })}
@@ -81,7 +78,7 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
         </div>
       </div>
       <Select
-        defaultValue={defaultValues?.type}
+        value={watchForm.type}
         onValueChange={(value: MessageType) => {
           form.setValue("type", value)
         }}

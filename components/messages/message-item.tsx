@@ -1,58 +1,116 @@
 "use client"
 
-import { useMemo } from "react"
+import { useCallback, useMemo } from "react"
 import { isMessagingAtom } from "@/atoms"
 import { Message, MessageRole, MessageType } from "@prisma/client"
 import { BarChart } from "@tremor/react"
 import { useAtom } from "jotai"
-import { BarChart3, Download } from "lucide-react"
+import { Copy, Download } from "lucide-react"
 import moment from "moment"
 import { CSVLink } from "react-csv"
-import { set } from "zod"
 
 import { cn } from "@/lib/utils"
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
 
 import { DataTable } from "../results/data-table"
+import { useToast } from "../ui/use-toast"
 
 type Props = {
   message: Message
 }
 
-export const MessageItem = ({ message }: Props) => {
-  const [isMessaging, setIsMessaging] = useAtom(isMessagingAtom)
-  const parsedResults = useMemo(() => {
-    if (!message.results) return null
+const useParsedResults = (results: string | null) => {
+  return useMemo(() => {
+    if (!results) return null
     try {
-      const parsed = JSON.parse(message.results as string)
-      return parsed
+      return JSON.parse(results)
     } catch (e) {
       return null
     }
-  }, [message.results])
+  }, [results])
+}
 
-  console.log(parsedResults)
+const CSVLinkWrapper = ({ data }: { data: any }) => (
+  <div className="flex items-center gap-2">
+    <CSVLink
+      className="flex select-none items-center justify-center gap-2 rounded border px-3 py-1 text-xs hover:bg-primary hover:text-primary-foreground"
+      data={data}
+      target="_blank"
+      filename="results.csv"
+    >
+      <Download className="h-3 w-3" />
+      CSV
+    </CSVLink>
+  </div>
+)
 
-  const renderMessage = () => {
-    if (!parsedResults) return message.content
+const MessageItemContent = ({
+  message,
+  parsedResults,
+}: {
+  message: Message
+  parsedResults: any
+}) => {
+  if (!parsedResults) return <>{message.content}</>
 
+  if (message.type === MessageType.CHART) {
+    return (
+      <div className="flex min-w-[980px] flex-col gap-2">
+        <h4 className="text-center text-xs text-muted-foreground/75">
+          {parsedResults.title.toUpperCase()}
+        </h4>
+        <BarChart
+          className="w-full"
+          index="topic"
+          categories={parsedResults.categories}
+          data={parsedResults.data}
+          maxValue={parsedResults.maxValue}
+        />
+      </div>
+    )
+  }
+
+  return <DataTable data={parsedResults} />
+}
+
+export const MessageItem = ({ message }: Props) => {
+  const [, copy] = useCopyToClipboard()
+  const [isMessaging, setIsMessaging] = useAtom(isMessagingAtom)
+  const parsedResults = useParsedResults(message.results as string)
+  const { toast } = useToast()
+
+  const getCsvData = useCallback(() => {
+    if (!parsedResults) return []
     if (message.type === MessageType.CHART) {
-      return (
-        <div className="flex min-w-[980px] flex-col gap-2">
-          <h4 className="text-center text-xs text-muted-foreground/75">
-            {parsedResults.title.toUpperCase()}
-          </h4>
-          <BarChart
-            className="w-full"
-            index="topic"
-            categories={parsedResults.categories}
-            data={parsedResults.data}
-            maxValue={parsedResults.maxValue}
-          />
-        </div>
-      )
+      return parsedResults.data
     }
 
-    return <DataTable data={parsedResults} />
+    return parsedResults
+  }, [parsedResults, message.type])
+
+  if (!parsedResults) {
+    return (
+      <li
+        className={cn(
+          "flex flex-col gap-1",
+          message.role === MessageRole.USER ? "items-end" : "items-start"
+        )}
+      >
+        <div
+          className={cn(
+            "flex w-fit max-w-[calc(100vw-3rem)] flex-col overflow-x-auto rounded-md px-4 py-2",
+            message.role === MessageRole.USER
+              ? "bg-primary text-primary-foreground"
+              : "bg-secondary text-secondary-foreground"
+          )}
+        >
+          {message.content}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {moment(message.createdAt).fromNow()}
+        </div>
+      </li>
+    )
   }
 
   return (
@@ -62,29 +120,33 @@ export const MessageItem = ({ message }: Props) => {
         message.role === MessageRole.USER ? "items-end" : "items-start"
       )}
     >
-      {parsedResults && message.role === MessageRole.ASSISTANT && (
-        <div className="flex items-center gap-2">
-          <CSVLink
+      <div className="flex items-center gap-2">
+        <CSVLinkWrapper data={getCsvData()} />
+        {message.sql && (
+          <button
             className="flex select-none items-center justify-center gap-2 rounded border px-3 py-1 text-xs hover:bg-primary hover:text-primary-foreground"
-            data={parsedResults as any}
-            target="_blank"
-            filename="results.csv"
+            onClick={() => {
+              copy(message.sql!)
+              toast({
+                title: "Copied to clipboard",
+                description: "The SQL query has been copied to your clipboard.",
+              })
+            }}
           >
-            <Download className="h-3 w-3" />
-            CSV
-          </CSVLink>
-        </div>
-      )}
+            <Copy className="h-3 w-3" />
+            SQL
+          </button>
+        )}
+      </div>
       <div
         className={cn(
-          "flex w-fit max-w-[calc(100vw-3rem)] flex-col overflow-x-auto rounded-md",
+          "flex w-fit max-w-[calc(100vw-3rem)] flex-col overflow-x-auto rounded-md p-2",
           message.role === MessageRole.USER
             ? "bg-primary text-primary-foreground"
-            : "bg-secondary text-secondary-foreground",
-          parsedResults ? "p-2" : "px-4 py-2"
+            : "bg-secondary text-secondary-foreground"
         )}
       >
-        {renderMessage()}
+        <MessageItemContent message={message} parsedResults={parsedResults} />
       </div>
       <div className="text-xs text-muted-foreground">
         {moment(message.createdAt).fromNow()}
