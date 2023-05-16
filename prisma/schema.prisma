@@ -72,11 +72,12 @@ model Application {
 }
 
 model BusinessPartner {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   firstName String
   lastName  String
   email     String
   phone     String
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

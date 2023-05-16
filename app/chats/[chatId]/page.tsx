@@ -1,8 +1,8 @@
 import { prisma } from "@/prisma/db"
-import { MessageType } from "@prisma/client"
 
-import { CreateMessageForm } from "@/components/messages/create-message-form"
 import { MessageList } from "@/components/messages/message-list"
+
+export const revalidate = 60
 
 type Props = {
   params: {
@@ -19,16 +19,5 @@ export default async function ChatPage({ params }: Props) {
       createdAt: "asc",
     },
   })
-  return (
-    <section className="flex flex-1 flex-col">
-      <MessageList messages={messages} />
-      <CreateMessageForm
-        defaultValues={{
-          chatId: params.chatId,
-          content: "",
-          type: MessageType.TABLE,
-        }}
-      />
-    </section>
-  )
+  return <MessageList messages={messages} />
 }
