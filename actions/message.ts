@@ -280,7 +280,7 @@ Craft a short and concise response using the data retrieved from the SQL query. 
 If the question asks about a specific date range, assume that the SQL result provides data in that date range.
 If the SQL result provides a count, assume that the count represents the answer to the question.
 
-For example, given the data provided:
+For example, given the dataset provided:
 
 [
   {
@@ -300,12 +300,38 @@ For example, given the data provided:
   }
 ]
 
+And the question:
+
+How many Jet and Alliance Services applications were received in French? How many Alliance Services applications were received in English?
+
 The following is an acceptable response:
+
 There has been 48 French applications through Alliance Services, 45 French through Jet, and 46 English applications through Alliance Services.
 
-Now, please apply these steps and principles to the following dataset and question: {input} {question}
-`
+Another example:
 
+Given the dataset provided:
+
+[{"count": "2"}]
+
+And the question:
+
+How many applications were received in the last 30 days?
+
+The following is an acceptable response:
+
+There has been 2 applications received in the last 30 days.
+
+Now, please apply these steps and principles to the following dataset and question: 
+
+Dataset:
+
+{input} 
+
+Question:
+
+{question}
+`
 
 type ReflectionResponse = {
   status: "VALID" | "INVALID"
@@ -362,7 +388,9 @@ const createChatCompletion = async ({
     max_tokens: 2048,
     messages: [
       {
-        content: prompt.replace("{input}", input).replace("{question}", question),
+        content: prompt
+          .replace("{input}", input)
+          .replace("{question}", question),
         role,
       },
     ],
@@ -467,7 +495,6 @@ const processTextResponse = async (
       responseToId: messageId,
     },
   })
-
 }
 
 export const createMessage = async (
@@ -475,7 +502,6 @@ export const createMessage = async (
 ) => {
   const message = await prisma.message.create({ data: input })
   console.log(input)
-
 
   try {
     const results = await processSQLResponse(input)
