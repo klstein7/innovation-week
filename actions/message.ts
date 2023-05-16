@@ -503,15 +503,33 @@ const processTextResponse = async (
   })
 }
 
+const processTableResponse = async (
+  resultsString: string,
+  results: any,
+  input: Prisma.MessageUncheckedCreateInput,
+  messageId: string
+) => {
+
+  await prisma.message.create({
+    data: {
+      type: MessageType.TABLE,
+      results: resultsString,
+      content: "Here are the results:",
+      chatId: input.chatId,
+      role: MessageRole.ASSISTANT,
+      sql: results.parsedReflection.response,
+      responseToId: messageId,
+    },
+  })
+}
+
 export const createMessage = async (
   input: Prisma.MessageUncheckedCreateInput
 ) => {
   const message = await prisma.message.create({ data: input })
-  console.log(input)
 
   try {
     const results = await processSQLResponse(input)
-    console.log(results)
 
     if (!results) {
       throw new Error("Invalid SQL response from OpenAI")
@@ -520,29 +538,25 @@ export const createMessage = async (
     const resultsString = JSON.stringify(results.results, (key, value) =>
       typeof value === "bigint" ? value.toString() : value
     )
-    console.log(resultsString)
 
     if (input.type === MessageType.TABLE) {
-      await prisma.message.create({
-        data: {
-          type: MessageType.TABLE,
-          results: resultsString,
-          content: "Here are the results:",
-          chatId: input.chatId,
-          role: MessageRole.ASSISTANT,
-          sql: results.parsedReflection.response,
-          responseToId: message.id,
-        },
-      })
+      await processTableResponse(resultsString, results, input, message.id)
     } else if (input.type === MessageType.CHART) {
       await processChartResponse(resultsString, results, input, message.id)
     } else if (input.type === MessageType.TEXT) {
       try {
         await processTextResponse(resultsString, results, input, message.id)
       } catch {
-        throw new Error(
-          "Token limit exceeded, please try to use the Table or Chart type instead."
-        )
+        await prisma.message.create({
+          data: {
+            type: MessageType.TEXT,
+            content: "Token limit exceeded. Displaying results as a table.",
+            chatId: input.chatId,
+            role: MessageRole.ASSISTANT,
+            responseToId: message.id,
+          },
+        })
+        await processTableResponse(resultsString, results, input, message.id)
       }
     }
   } catch (error: any) {
