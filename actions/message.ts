@@ -497,15 +497,33 @@ const processTextResponse = async (
   })
 }
 
+const processTableResponse = async (
+  resultsString: string,
+  results: any,
+  input: Prisma.MessageUncheckedCreateInput,
+  messageId: string
+) => {
+
+  await prisma.message.create({
+    data: {
+      type: MessageType.TABLE,
+      results: resultsString,
+      content: "Here are the results:",
+      chatId: input.chatId,
+      role: MessageRole.ASSISTANT,
+      sql: results.parsedReflection.response,
+      responseToId: messageId,
+    },
+  })
+}
+
 export const createMessage = async (
   input: Prisma.MessageUncheckedCreateInput
 ) => {
   const message = await prisma.message.create({ data: input })
-  console.log(input)
 
   try {
     const results = await processSQLResponse(input)
-    console.log(results)
 
     if (!results) {
       throw new Error("Invalid SQL response")
@@ -514,24 +532,17 @@ export const createMessage = async (
     const resultsString = JSON.stringify(results.results, (key, value) =>
       typeof value === "bigint" ? value.toString() : value
     )
-    console.log(resultsString)
 
     if (input.type === MessageType.TABLE) {
-      await prisma.message.create({
-        data: {
-          type: MessageType.TABLE,
-          results: resultsString,
-          content: "Here are the results:",
-          chatId: input.chatId,
-          role: MessageRole.ASSISTANT,
-          sql: results.parsedReflection.response,
-          responseToId: message.id,
-        },
-      })
+      await processTableResponse(resultsString, results, input, message.id)
     } else if (input.type === MessageType.CHART) {
       await processChartResponse(resultsString, results, input, message.id)
     } else if (input.type === MessageType.TEXT) {
-      await processTextResponse(resultsString, results, input, message.id)
+      try {
+        await processTextResponse(resultsString, results, input, message.id)
+      } catch {
+        await processTableResponse(resultsString, results, input, message.id)
+      }
     }
   } catch (error) {
     await createErrorMessage({
