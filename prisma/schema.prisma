@@ -68,10 +68,11 @@ model Application {
   updatedAt    DateTime          @updatedAt
   completedAt  DateTime?
 
-  outletBusinessPartner   BusinessPartner @relation("OutletApplications", fields: [outletBusinessPartnerId], references: [id], onDelete: Cascade)
-  outletBusinessPartnerId String
+  outlet   BusinessPartner @relation("OutletApplications", fields: [outletId], references: [id], onDelete: Cascade)
+  outletId String
 
-  parties Party[] ///Can be used to search by province, city, etc.
+  borrower   BusinessPartner @relation("BorrowerApplications", fields: [borrowerId], references: [id], onDelete: Cascade)
+  borrowerId String
 }
 
 model BusinessPartner {
@@ -87,24 +88,8 @@ model BusinessPartner {
   address   Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
   addressId String
 
-  account   Account?
-  accountId String?
-
-  parties            Party[]
-  outletApplications Application[] @relation("OutletApplications")
-}
-
-model Party {
-  id        String    @id @default(cuid())
-  type      PartyType
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
-  businessPartnerId String
-
-  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  applicationId String      @unique
+  outletApplications   Application[] @relation("OutletApplications")
+  borrowerApplications Application[] @relation("BorrowerApplications")
 }
 
 model Address {
@@ -117,16 +102,6 @@ model Address {
   updatedAt DateTime @updatedAt
 
   businessPartners BusinessPartner[]
-}
-
-model Account {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
-  businessPartnerId String          @unique
 }
 
 enum ApplicationStatus {
@@ -158,11 +133,6 @@ enum Language {
 enum BusinessPartnerType {
   ALLIANCE_PARTNER
   CUSTOMER
-}
-
-enum PartyType {
-  BORROWER
-  GUARANTOR
 }
 
 /// End exposed to AI
