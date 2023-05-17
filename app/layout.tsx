@@ -8,6 +8,7 @@ import { GptSwitch } from "@/components/ui/gpt-switch"
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { ClearMessages } from "@/components/ui/clear-messages-button"
 
 export const metadata: Metadata = {
   title: {
@@ -44,6 +45,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <div className="relative flex h-screen flex-col">
               <div className="flex h-12 shrink-0 items-center border-b px-2">
+                <div className="absolute left-0 px-2">
+                  <ClearMessages />
+                </div>
                 <div className="absolute inset-x-0 m-auto grid place-items-center">
                   <GptSwitch />
                 </div>

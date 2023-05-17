@@ -1,6 +1,6 @@
 import { MessageType } from "@prisma/client"
 
-import { OpenAiAlert } from "@/components/ui/OpenAiAlert"
+import { OpenAiAlert } from "@/components/ui/open-ai-alert"
 import { CreateMessageForm } from "@/components/messages/create-message-form"
 
 type Props = {
