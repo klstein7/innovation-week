@@ -1,21 +1,10 @@
 "use server"
 
-import fs from "fs"
 import { prisma } from "@/prisma/db"
 import { MessageRole, MessageType, Prisma } from "@prisma/client"
 import { ChatCompletionRequestMessageRoleEnum } from "openai"
 
 import { openai } from "@/lib/openai"
-
-function readSchemaFileSync(filePath: string): string {
-  const data = fs.readFileSync(filePath, "utf8")
-  const startComment = "/// Exposed to AI"
-  const endComment = "/// End exposed to AI"
-  const regex = new RegExp(`${startComment}([\\s\\S]*?)${endComment}`, "gm")
-  const match = regex.exec(data)
-
-  return match![1].trim()
-}
 
 const SQL_PROMPT = `
 Today's date is ${new Date().toLocaleDateString()}.
@@ -28,7 +17,113 @@ Provide only the SQL query without extra text or formatting.
 
 Consider these example schemas:
 
-${readSchemaFileSync("prisma/schema.prisma")}
+model Application {
+  id           String            @id @default(cuid())
+  amount       Float
+  language     Language          @default(ENGLISH)
+  status       ApplicationStatus @default(PENDING)
+  productLine  ProductLine       @default(INPUT_FINANCING)
+  businessLine BusinessLine      @default(SMALL_BUSINESS)
+  channel      Channel           @default(ALLIANCE_SERVICES)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  completedAt  DateTime?
+
+  outletBusinessPartner   BusinessPartner @relation("OutletApplications", fields: [outletBusinessPartnerId], references: [id], onDelete: Cascade)
+  outletBusinessPartnerId String
+
+  parties Party[]
+}
+
+model BusinessPartner {
+  id          String              @id @default(cuid())
+  type        BusinessPartnerType @default(CUSTOMER)
+  displayName String
+  email       String
+  phone       String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  address   Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  addressId String
+
+  account Account?
+
+  parties            Party[]
+  outletApplications Application[] @relation("OutletApplications")
+}
+
+model Party {
+  id        String    @id @default(cuid())
+  type      PartyType
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
+  businessPartnerId String
+
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String      @unique
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  street    String
+  city      String
+  province  String
+  postal    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessPartners BusinessPartner[]
+}
+
+model Account {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id])
+  businessPartnerId String          @unique
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+enum ProductLine {
+  INPUT_FINANCING
+}
+
+enum BusinessLine {
+  SMALL_BUSINESS
+  CORPORATE_AND_COMMERCIAL
+}
+
+enum Channel {
+  ALLIANCE_SERVICES
+  JET
+  ONLINE_SERVICES
+}
+
+enum Language {
+  ENGLISH
+  FRENCH
+}
+
+enum BusinessPartnerType {
+  ALLIANCE_PARTNER
+  CUSTOMER
+}
+
+enum PartyType {
+  BORROWER
+  GUARANTOR
+}
 
 Using these schemas, create a PostgreSQL query to answer this question:
 {question}
