@@ -102,6 +102,7 @@ async function main() {
         ]),
         createdAt,
         updatedAt,
+        completedAt: faker.datatype.boolean() ? updatedAt : null,
         parties: {
           create: [
             {
