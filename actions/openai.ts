@@ -13,6 +13,7 @@ You are a database engineer tasked with creating a PostgreSQL query using the pr
 Use double quotes for table and column names.
 Use single quotes for string values.
 Your query must not end with a semicolon.
+Your columns must always have a short descriptive alias.
 Provide only the SQL query without extra text or formatting.
 
 model User {
@@ -35,7 +36,7 @@ Example question:
 'What are the names and email addresses of users who have published a post with 'AI' in the title?'
 
 Example SQL query:
-SELECT "User"."name", "User"."email" FROM "User" JOIN "Post" ON "User"."id" = "Post"."userId" WHERE "Post"."title" LIKE '%AI%'
+SELECT "User"."name" as "name", "User"."email" as "email" FROM "User" JOIN "Post" ON "User"."id" = "Post"."userId" WHERE "Post"."title" LIKE '%AI%'
 
 Now consider these schemas:
 
@@ -54,7 +55,7 @@ model Application {
   outletBusinessPartner   BusinessPartner @relation("OutletApplications", fields: [outletBusinessPartnerId], references: [id], onDelete: Cascade)
   outletBusinessPartnerId String
 
-  parties Party[]
+  parties Party[] ///Can be used to search by province, city, etc.
 }
 
 model BusinessPartner {
@@ -70,7 +71,8 @@ model BusinessPartner {
   address   Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
   addressId String
 
-  account Account?
+  account   Account?
+  accountId String? ///Can be used to search by username
 
   parties            Party[]
   outletApplications Application[] @relation("OutletApplications")
@@ -83,7 +85,7 @@ model Party {
   updatedAt DateTime  @updatedAt
 
   businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
-  businessPartnerId String
+  businessPartnerId String // Can be used to search by business partner name, email, phone, etc.
 
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   applicationId String      @unique
@@ -107,7 +109,7 @@ model Account {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id])
+  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
   businessPartnerId String          @unique
 }
 
@@ -172,100 +174,31 @@ Now, apply these steps to the following SQL query:
 `
 
 const CHART_PROMPT = `
-As an AI engineer specializing in natural language processing and data restructuring, you are tasked with transforming a given input dataset into a format suitable for generating a bar chart visualization. 
-Your response will be evaluated based on your understanding of the underlying data, your ability to manipulate and structure the data appropriately, and your proficiency in generating a JSON object in the specified format.
-
-Please follow these steps:
-
-First, evaluate the provided dataset. If the dataset is not suitable for creating a bar chart, please indicate this by setting the 'status' field in your output JSON object to 'INVALID'. If the dataset is suitable for creating a bar chart, indicate this by setting the 'status' field to 'VALID'.
-
-Next, you need to restructure the dataset. The restructured data should include a title for the chart, an array of categories, and an array of data objects. Each data object should represent a separate bar in the bar chart and contain the following fields: 'topic', and one field for each category, where the field name is the category name and the field value is the corresponding data value.
-
-Your response must only be a JSON object, and must not include any other text or formatting. Your response should be in this format:
+As an AI model, you're tasked with reformatting a given dataset into a structure suited for a bar chart visualization. The output must be a JSON object in the following format:
 
 {
-  "status": "<VALID | INVALID>",
-  "response": <{
-    "title": "<Title of the chart>",
-    "categories": ["<Array of categories>"],
-    "data": [
-      {
-        "topic": "<Topic of the data object>",
-        "<Category 1>": "<Data value for Category 1>",
-        "<Category 2>": "<Data value for Category 2>",
-        "<Category 3>": "<Data value for Category 3>",
-        "<...>": "<...>"
-      }
-    ]
-  } | null>
-}
-
-Here's an example:
-
-Given this data:
-
-[
-  {
-    "language": "FRENCH",
-    "channel": "ALLIANCE_SERVICES",
-    "count": "48"
-  },
-  {
-    "language": "FRENCH",
-    "channel": "JET",
-    "count": "45"
-  },
-  {
-    "language": "ENGLISH",
-    "channel": "ALLIANCE_SERVICES",
-    "count": "46"
-  },
-  {
-    "language": "FRENCH",
-    "channel": "ONLINE_SERVICES",
-    "count": "59"
-  },
-  {
-    "language": "ENGLISH",
-    "channel": "ONLINE_SERVICES",
-    "count": "57"
-  },
-  {
-    "language": "ENGLISH",
-    "channel": "JET",
-    "count": "45"
-  }
+"status": "VALID" or "INVALID",
+"response": {
+"title": "Title",
+"categories": ["Category 1", "Category 2"],
+"data": [
+{
+"topic": "Topic 1",
+"Category 1": "Value 1",
+"Category 2": "Value 2"
+},
+{...}
 ]
-
-Your output should be:
-
-{
-  "status": "VALID",
-  "response": {
-    "title": "Channel by Language",
-    "categories": ["ALLIANCE_SERVICES", "JET", "ONLINE_SERVICES"],
-    "minValue": 45,
-    "maxValue": 59,
-    "data": [
-      {
-        "topic": "FRENCH",
-        "ALLIANCE_SERVICES": "48",
-        "JET": "45",
-        "ONLINE_SERVICES": "59"
-      },
-      {
-        "topic": "ENGLISH",
-        "ALLIANCE_SERVICES": "46",
-        "JET": "45",
-        "ONLINE_SERVICES": "57"
-      }
-    ]
-  }
+}
 }
 
-Another example:
+If the input dataset isn't suitable for a bar chart, indicate this with a 'status' value of 'INVALID'. If suitable, use 'VALID'.
 
-Given this data:
+The restructured data must include a title, categories, and data objects. Each data object represents a bar in the chart, with a 'topic' field and a field for each category's corresponding value.
+Each topic must be less than 10 characters long. If a topic is longer than 10 characters, truncate it to 10 characters.
+Your response must only be a valid JSON object in the format specified above. Do not include any other information in your response.
+
+For example, given the following dataset:
 
 [
   {
@@ -280,43 +213,43 @@ Given this data:
     name: "Crustaceans",
     "Number of threatened species": 743,
   },
-]
+];
 
 Your output should be:
 
 {
   "status": "VALID",
   "response": {
-    "title": "Number of species threatened with extinction",
-    "categories": ["Number of threatened species"],
-    "maxValue": 2488,
-    "data": [
-      {
-        "topic": "Amphibians",
-        "Number of threatened species": 2488,
-      },
-      {
-        "topic": "Birds",
-        "Number of threatened species": 1445,
-      },
-      {
-        "topic": "Crustaceans",
-        "Number of threatened species": 743,
-      },
-    ]
+      "title": "Number of species threatened with extinction",
+      "categories": [
+          "Number of threatened species"
+      ],
+      "maxValue": 2488,
+      "data": [
+          {
+              "topic": "Amphibians",
+              "Number of threatened species": 2488
+          },
+          {
+              "topic": "Birds",
+              "Number of threatened species": 1445
+          },
+          {
+              "topic": "Crustacean",
+              "Number of threatened species": 743
+          },
+      ]
   }
 }
-
-Now, please apply these steps and principles to the following dataset: 
-{input}
+Please apply these instructions to this dataset: {input}
 `
 
 const TEXT_PROMPT = `
 Today's date is: ${new Date().toLocaleDateString()}
-As an AI analyst, you are tasked to effectively analyze the provided data and provide a short and concise summary of it. Please follow these guidelines:
 
-Craft a short and concise response using the data retrieved from the SQL query. Analyze the results of the SQL query and incorporate relevant information to answer the given question. 
-If the SQL result provides a count, assume that the count represents the answer to the question.
+Your role as an AI system involves the interpretation and processing of an array of data to generate answers to user queries. Leveraging the data presented, your task is to conceive a precise, yet robust, response in natural English. Ensure that your responses are conversational, blending seamlessly into a dialogue, without explicitly referencing the source dataset.
+
+When dealing with numerical or count-based data, treat the count as the direct answer to the user's question. However, maintain the subtlety of not revealing the actual numerical data source.
 
 For example, given the dataset provided:
 
@@ -344,7 +277,7 @@ How many Jet and Alliance Services applications were received in French? How man
 
 The following is an acceptable response:
 
-There has been 48 French applications through Alliance Services, 45 French through Jet, and 46 English applications through Alliance Services.
+There were a total of 93 applications received in French across both Jet and Alliance Services. Specifically, 48 were through Alliance Services and 45 were through Jet. As for Alliance Services applications received in English, there were 46 in total.
 
 Another example:
 
@@ -354,11 +287,11 @@ Given the dataset provided:
 
 And the question:
 
-How many applications were received in the last week?
+How many applications were received?
 
 The following is an acceptable response:
 
-There has been 2 applications received in the last week.
+We received a total of 2 Jet and Alliance Services applications.
 
 Now, please apply these steps and principles to the following dataset and question: 
 
@@ -429,6 +362,8 @@ export const createChatCompletion = async ({
   if (!messageContent) {
     throw new Error("No response from OpenAI")
   }
+
+  console.log(messageContent)
 
   return messageContent
 }

@@ -81,7 +81,7 @@ export const createTextMessage = async ({
   chatId: string
   sql: string
   question: string
-  gptVersionModel: string 
+  gptVersionModel: string
 }) => {
   const textResponse = await createChatCompletion({
     type: "TEXT",
@@ -107,7 +107,7 @@ export const createChartMessage = async ({
   results,
   chatId,
   sql,
-  question,
+  question = "",
   gptVersionModel,
 }: {
   results: Record<string, unknown>[]
