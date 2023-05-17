@@ -5,9 +5,7 @@ import { siteConfig } from "@/config/site"
 import { fontSans } from "@/lib/fonts"
 import { cn } from "@/lib/utils"
 import { GptSwitch } from "@/components/ui/gpt-switch"
-import { Switch } from "@/components/ui/switch"
 import { Toaster } from "@/components/ui/toaster"
-import { TailwindIndicator } from "@/components/tailwind-indicator"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ThemeToggle } from "@/components/theme-toggle"
 
@@ -55,6 +53,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
               </div>
               <div className="flex flex-1 flex-col">{children}</div>
             </div>
+            
           </ThemeProvider>
           <Toaster />
         </body>
