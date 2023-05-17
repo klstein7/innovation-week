@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+import { ExampleList } from "../examples/example-list"
 import { MessageItem } from "./message-item"
 
 type Props = {
@@ -48,6 +49,10 @@ export const MessageList = ({ messages }: Props) => {
   useEffect(() => {
     scrollToBottom()
   }, [optimisticMessages])
+
+  if (optimisticMessages.length === 0) {
+    return <ExampleList />
+  }
 
   return (
     <div className="flex max-h-[calc(100vh-9rem)] flex-1 flex-col overflow-y-auto">

@@ -71,7 +71,7 @@ model Application {
   outletBusinessPartner   BusinessPartner @relation("OutletApplications", fields: [outletBusinessPartnerId], references: [id], onDelete: Cascade)
   outletBusinessPartnerId String
 
-  parties Party[]
+  parties Party[] ///Can be used to search by province, city, etc.
 }
 
 model BusinessPartner {
@@ -87,7 +87,8 @@ model BusinessPartner {
   address   Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
   addressId String
 
-  account Account?
+  account   Account?
+  accountId String?
 
   parties            Party[]
   outletApplications Application[] @relation("OutletApplications")
@@ -124,7 +125,7 @@ model Account {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id])
+  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
   businessPartnerId String          @unique
 }
 
