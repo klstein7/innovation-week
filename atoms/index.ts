@@ -18,3 +18,5 @@ export const messagingStatusAtom = atom<MessagingStatus>("GENERATING")
 
 export const gptSwitchAtom = atom<GptVersionModel>("gpt-3.5-turbo")
 
+export const openAiAlertAtom = atom(false)
+

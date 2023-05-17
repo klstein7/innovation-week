@@ -13,7 +13,7 @@ import {
   getSqlReflection,
   getSqlResults,
 } from "@/actions/openai"
-import { gptSwitchAtom, isMessagingAtom, messagesAtom, messagingStatusAtom } from "@/atoms"
+import { gptSwitchAtom, isMessagingAtom, messagesAtom, messagingStatusAtom, openAiAlertAtom } from "@/atoms"
 import { MessageUncheckedCreateInputSchema } from "@/prisma/generated/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { MessageRole, MessageType } from "@prisma/client"
@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select"
+import { useEffect } from "react"
 
 type Props = {
   defaultValues?: z.infer<typeof MessageUncheckedCreateInputSchema>
@@ -45,12 +46,20 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
   const [isMessaging, setIsMessaging] = useAtom(isMessagingAtom)
   const [messages, setMessages] = useAtom(messagesAtom)
   const [gptAtom, ] = useAtom(gptSwitchAtom)
+  const [getIsOpenAiAlert, setIsOpenAiAlert] = useAtom(openAiAlertAtom)
   const form = useForm<z.infer<typeof MessageUncheckedCreateInputSchema>>({
     resolver: zodResolver(MessageUncheckedCreateInputSchema),
     defaultValues,
   })
 
   const watchForm = form.watch()
+
+  useEffect(() => {
+    console.log(watchForm.type)
+    setIsOpenAiAlert(watchForm.type === "TABLE" ? true : false)
+    console.log(getIsOpenAiAlert)
+
+  }, [watchForm.type])
 
   return (
     <form
