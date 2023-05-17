@@ -55,7 +55,7 @@ const MessageItemContent = ({
 
   if (message.type === MessageType.CHART) {
     return (
-      <div className="flex min-w-[980px] flex-col gap-2">
+      <div className="flex min-w-[1280px] flex-col gap-2">
         <h4 className="text-center text-xs text-muted-foreground/75">
           {parsedResults.title.toUpperCase()}
         </h4>
