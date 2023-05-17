@@ -1,24 +1,8 @@
 "use client"
 
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import {
-  createChartMessage,
-  createErrorMessage,
-  createMessage,
-  createTableMessage,
-  createTextMessage,
-} from "@/actions/message"
-import {
-  createChatCompletion,
-  getSqlReflection,
-  getSqlResults,
-} from "@/actions/openai"
-import {
-  gptSwitchAtom,
-  isMessagingAtom,
-  messagesAtom,
-  messagingStatusAtom,
-} from "@/atoms"
+import { isMessagingAtom, isOpenAiAlertAtom } from "@/atoms"
 import { MessageUncheckedCreateInputSchema } from "@/prisma/generated/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { MessageRole, MessageType } from "@prisma/client"
@@ -46,6 +30,7 @@ type Props = {
 export const CreateMessageForm = ({ defaultValues }: Props) => {
   const router = useRouter()
   const [isMessaging] = useAtom(isMessagingAtom)
+  const [isOpenAiAlert, setIsOpenAiAlert] = useAtom(isOpenAiAlertAtom)
   const createMessageMutation = useCreateMessage()
 
   const form = useForm<z.infer<typeof MessageUncheckedCreateInputSchema>>({
@@ -54,6 +39,10 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
   })
 
   const watchForm = form.watch()
+
+  useEffect(() => {
+    setIsOpenAiAlert(watchForm.type !== "TABLE" ? true : false)
+  }, [watchForm.type])
 
   return (
     <form
