@@ -1,8 +1,7 @@
 import { MessageType } from "@prisma/client"
 
-import { CreateMessageForm } from "@/components/messages/create-message-form"
-
 import { OpenAiAlert } from "@/components/ui/OpenAiAlert"
+import { CreateMessageForm } from "@/components/messages/create-message-form"
 
 type Props = {
   children: React.ReactNode
@@ -14,7 +13,7 @@ type Props = {
 export default function ChatLayout({ children, params }: Props) {
   return (
     <section className="flex flex-1 flex-col">
-      <div><OpenAiAlert/></div>
+      <OpenAiAlert />
       {children}
       <CreateMessageForm
         defaultValues={{
