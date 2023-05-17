@@ -64,15 +64,19 @@ model Application {
   productLine  ProductLine       @default(INPUT_FINANCING)
   businessLine BusinessLine      @default(SMALL_BUSINESS)
   channel      Channel           @default(ALLIANCE_SERVICES)
-  createdAt    DateTime
-  updatedAt    DateTime
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  completedAt  DateTime?
 
-  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id])
-  businessPartnerId String
+  outletBusinessPartner   BusinessPartner @relation("OutletApplications", fields: [outletBusinessPartnerId], references: [id], onDelete: Cascade)
+  outletBusinessPartnerId String
+
+  parties Party[]
 }
 
 model BusinessPartner {
-  id        String @id @default(cuid())
+  id        String              @id @default(cuid())
+  type      BusinessPartnerType @default(CUSTOMER)
   firstName String
   lastName  String
   email     String
@@ -84,7 +88,22 @@ model BusinessPartner {
   address   Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
   addressId String
 
-  applications Application[]
+  account            Account?
+  parties            Party[]
+  outletApplications Application[] @relation("OutletApplications")
+}
+
+model Party {
+  id        String    @id @default(cuid())
+  type      PartyType
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
+  businessPartnerId String
+
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String      @unique
 }
 
 model Address {
@@ -97,6 +116,16 @@ model Address {
   updatedAt DateTime @updatedAt
 
   businessPartners BusinessPartner[]
+}
+
+model Account {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id])
+  businessPartnerId String          @unique
 }
 
 enum ApplicationStatus {
@@ -123,4 +152,14 @@ enum Channel {
 enum Language {
   ENGLISH
   FRENCH
+}
+
+enum BusinessPartnerType {
+  ALLIANCE_PARTNER
+  CUSTOMER
+}
+
+enum PartyType {
+  BORROWER
+  GUARANTOR
 }

@@ -48,11 +48,13 @@ export type InputJsonValueType = z.infer<typeof InputJsonValue>;
 // ENUMS
 /////////////////////////////////////////
 
+export const AccountScalarFieldEnumSchema = z.enum(['id','username','createdAt','updatedAt','businessPartnerId']);
+
 export const AddressScalarFieldEnumSchema = z.enum(['id','street','city','province','postal','createdAt','updatedAt']);
 
-export const ApplicationScalarFieldEnumSchema = z.enum(['id','amount','language','status','productLine','businessLine','channel','createdAt','updatedAt','businessPartnerId']);
+export const ApplicationScalarFieldEnumSchema = z.enum(['id','amount','language','status','productLine','businessLine','channel','createdAt','updatedAt','completedAt','outletBusinessPartnerId']);
 
-export const BusinessPartnerScalarFieldEnumSchema = z.enum(['id','firstName','lastName','email','phone','createdAt','updatedAt','addressId']);
+export const BusinessPartnerScalarFieldEnumSchema = z.enum(['id','type','firstName','lastName','email','phone','createdAt','updatedAt','addressId']);
 
 export const ChatScalarFieldEnumSchema = z.enum(['id','name','createdAt','updatedAt']);
 
@@ -61,6 +63,8 @@ export const JsonNullValueFilterSchema = z.enum(['DbNull','JsonNull','AnyNull',]
 export const MessageScalarFieldEnumSchema = z.enum(['id','type','role','content','sql','results','createdAt','updatedAt','chatId','responseToId']);
 
 export const NullableJsonNullValueInputSchema = z.enum(['DbNull','JsonNull',]).transform((v) => transformJsonNull(v));
+
+export const PartyScalarFieldEnumSchema = z.enum(['id','type','createdAt','updatedAt','businessPartnerId','applicationId']);
 
 export const QueryModeSchema = z.enum(['default','insensitive']);
 
@@ -95,6 +99,14 @@ export type ChannelType = `${z.infer<typeof ChannelSchema>}`
 export const LanguageSchema = z.enum(['ENGLISH','FRENCH']);
 
 export type LanguageType = `${z.infer<typeof LanguageSchema>}`
+
+export const BusinessPartnerTypeSchema = z.enum(['ALLIANCE_PARTNER','CUSTOMER']);
+
+export type BusinessPartnerTypeType = `${z.infer<typeof BusinessPartnerTypeSchema>}`
+
+export const PartyTypeSchema = z.enum(['BORROWER','GUARANTOR']);
+
+export type PartyTypeType = `${z.infer<typeof PartyTypeSchema>}`
 
 /////////////////////////////////////////
 // MODELS
@@ -146,7 +158,8 @@ export const ApplicationSchema = z.object({
   amount: z.number(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
-  businessPartnerId: z.string(),
+  completedAt: z.coerce.date().nullable(),
+  outletBusinessPartnerId: z.string(),
 })
 
 export type Application = z.infer<typeof ApplicationSchema>
@@ -156,6 +169,7 @@ export type Application = z.infer<typeof ApplicationSchema>
 /////////////////////////////////////////
 
 export const BusinessPartnerSchema = z.object({
+  type: BusinessPartnerTypeSchema,
   id: z.string().cuid(),
   firstName: z.string(),
   lastName: z.string(),
@@ -167,6 +181,21 @@ export const BusinessPartnerSchema = z.object({
 })
 
 export type BusinessPartner = z.infer<typeof BusinessPartnerSchema>
+
+/////////////////////////////////////////
+// PARTY SCHEMA
+/////////////////////////////////////////
+
+export const PartySchema = z.object({
+  type: PartyTypeSchema,
+  id: z.string().cuid(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+  businessPartnerId: z.string(),
+  applicationId: z.string(),
+})
+
+export type Party = z.infer<typeof PartySchema>
 
 /////////////////////////////////////////
 // ADDRESS SCHEMA
@@ -183,6 +212,20 @@ export const AddressSchema = z.object({
 })
 
 export type Address = z.infer<typeof AddressSchema>
+
+/////////////////////////////////////////
+// ACCOUNT SCHEMA
+/////////////////////////////////////////
+
+export const AccountSchema = z.object({
+  id: z.string().cuid(),
+  username: z.string(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+  businessPartnerId: z.string(),
+})
+
+export type Account = z.infer<typeof AccountSchema>
 
 /////////////////////////////////////////
 // SELECT & INCLUDE
@@ -262,12 +305,22 @@ export const MessageSelectSchema: z.ZodType<Prisma.MessageSelect> = z.object({
 //------------------------------------------------------
 
 export const ApplicationIncludeSchema: z.ZodType<Prisma.ApplicationInclude> = z.object({
-  businessPartner: z.union([z.boolean(),z.lazy(() => BusinessPartnerArgsSchema)]).optional(),
+  outletBusinessPartner: z.union([z.boolean(),z.lazy(() => BusinessPartnerArgsSchema)]).optional(),
+  parties: z.union([z.boolean(),z.lazy(() => PartyFindManyArgsSchema)]).optional(),
+  _count: z.union([z.boolean(),z.lazy(() => ApplicationCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
 export const ApplicationArgsSchema: z.ZodType<Prisma.ApplicationArgs> = z.object({
   select: z.lazy(() => ApplicationSelectSchema).optional(),
   include: z.lazy(() => ApplicationIncludeSchema).optional(),
+}).strict();
+
+export const ApplicationCountOutputTypeArgsSchema: z.ZodType<Prisma.ApplicationCountOutputTypeArgs> = z.object({
+  select: z.lazy(() => ApplicationCountOutputTypeSelectSchema).nullish(),
+}).strict();
+
+export const ApplicationCountOutputTypeSelectSchema: z.ZodType<Prisma.ApplicationCountOutputTypeSelect> = z.object({
+  parties: z.boolean().optional(),
 }).strict();
 
 export const ApplicationSelectSchema: z.ZodType<Prisma.ApplicationSelect> = z.object({
@@ -280,8 +333,11 @@ export const ApplicationSelectSchema: z.ZodType<Prisma.ApplicationSelect> = z.ob
   channel: z.boolean().optional(),
   createdAt: z.boolean().optional(),
   updatedAt: z.boolean().optional(),
-  businessPartnerId: z.boolean().optional(),
-  businessPartner: z.union([z.boolean(),z.lazy(() => BusinessPartnerArgsSchema)]).optional(),
+  completedAt: z.boolean().optional(),
+  outletBusinessPartnerId: z.boolean().optional(),
+  outletBusinessPartner: z.union([z.boolean(),z.lazy(() => BusinessPartnerArgsSchema)]).optional(),
+  parties: z.union([z.boolean(),z.lazy(() => PartyFindManyArgsSchema)]).optional(),
+  _count: z.union([z.boolean(),z.lazy(() => ApplicationCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
 // BUSINESS PARTNER
@@ -289,7 +345,9 @@ export const ApplicationSelectSchema: z.ZodType<Prisma.ApplicationSelect> = z.ob
 
 export const BusinessPartnerIncludeSchema: z.ZodType<Prisma.BusinessPartnerInclude> = z.object({
   address: z.union([z.boolean(),z.lazy(() => AddressArgsSchema)]).optional(),
-  applications: z.union([z.boolean(),z.lazy(() => ApplicationFindManyArgsSchema)]).optional(),
+  account: z.union([z.boolean(),z.lazy(() => AccountArgsSchema)]).optional(),
+  parties: z.union([z.boolean(),z.lazy(() => PartyFindManyArgsSchema)]).optional(),
+  outletApplications: z.union([z.boolean(),z.lazy(() => ApplicationFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => BusinessPartnerCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
@@ -303,11 +361,13 @@ export const BusinessPartnerCountOutputTypeArgsSchema: z.ZodType<Prisma.Business
 }).strict();
 
 export const BusinessPartnerCountOutputTypeSelectSchema: z.ZodType<Prisma.BusinessPartnerCountOutputTypeSelect> = z.object({
-  applications: z.boolean().optional(),
+  parties: z.boolean().optional(),
+  outletApplications: z.boolean().optional(),
 }).strict();
 
 export const BusinessPartnerSelectSchema: z.ZodType<Prisma.BusinessPartnerSelect> = z.object({
   id: z.boolean().optional(),
+  type: z.boolean().optional(),
   firstName: z.boolean().optional(),
   lastName: z.boolean().optional(),
   email: z.boolean().optional(),
@@ -316,8 +376,34 @@ export const BusinessPartnerSelectSchema: z.ZodType<Prisma.BusinessPartnerSelect
   updatedAt: z.boolean().optional(),
   addressId: z.boolean().optional(),
   address: z.union([z.boolean(),z.lazy(() => AddressArgsSchema)]).optional(),
-  applications: z.union([z.boolean(),z.lazy(() => ApplicationFindManyArgsSchema)]).optional(),
+  account: z.union([z.boolean(),z.lazy(() => AccountArgsSchema)]).optional(),
+  parties: z.union([z.boolean(),z.lazy(() => PartyFindManyArgsSchema)]).optional(),
+  outletApplications: z.union([z.boolean(),z.lazy(() => ApplicationFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => BusinessPartnerCountOutputTypeArgsSchema)]).optional(),
+}).strict()
+
+// PARTY
+//------------------------------------------------------
+
+export const PartyIncludeSchema: z.ZodType<Prisma.PartyInclude> = z.object({
+  businessPartner: z.union([z.boolean(),z.lazy(() => BusinessPartnerArgsSchema)]).optional(),
+  application: z.union([z.boolean(),z.lazy(() => ApplicationArgsSchema)]).optional(),
+}).strict()
+
+export const PartyArgsSchema: z.ZodType<Prisma.PartyArgs> = z.object({
+  select: z.lazy(() => PartySelectSchema).optional(),
+  include: z.lazy(() => PartyIncludeSchema).optional(),
+}).strict();
+
+export const PartySelectSchema: z.ZodType<Prisma.PartySelect> = z.object({
+  id: z.boolean().optional(),
+  type: z.boolean().optional(),
+  createdAt: z.boolean().optional(),
+  updatedAt: z.boolean().optional(),
+  businessPartnerId: z.boolean().optional(),
+  applicationId: z.boolean().optional(),
+  businessPartner: z.union([z.boolean(),z.lazy(() => BusinessPartnerArgsSchema)]).optional(),
+  application: z.union([z.boolean(),z.lazy(() => ApplicationArgsSchema)]).optional(),
 }).strict()
 
 // ADDRESS
@@ -351,6 +437,27 @@ export const AddressSelectSchema: z.ZodType<Prisma.AddressSelect> = z.object({
   updatedAt: z.boolean().optional(),
   businessPartners: z.union([z.boolean(),z.lazy(() => BusinessPartnerFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => AddressCountOutputTypeArgsSchema)]).optional(),
+}).strict()
+
+// ACCOUNT
+//------------------------------------------------------
+
+export const AccountIncludeSchema: z.ZodType<Prisma.AccountInclude> = z.object({
+  businessPartner: z.union([z.boolean(),z.lazy(() => BusinessPartnerArgsSchema)]).optional(),
+}).strict()
+
+export const AccountArgsSchema: z.ZodType<Prisma.AccountArgs> = z.object({
+  select: z.lazy(() => AccountSelectSchema).optional(),
+  include: z.lazy(() => AccountIncludeSchema).optional(),
+}).strict();
+
+export const AccountSelectSchema: z.ZodType<Prisma.AccountSelect> = z.object({
+  id: z.boolean().optional(),
+  username: z.boolean().optional(),
+  createdAt: z.boolean().optional(),
+  updatedAt: z.boolean().optional(),
+  businessPartnerId: z.boolean().optional(),
+  businessPartner: z.union([z.boolean(),z.lazy(() => BusinessPartnerArgsSchema)]).optional(),
 }).strict()
 
 
@@ -485,8 +592,10 @@ export const ApplicationWhereInputSchema: z.ZodType<Prisma.ApplicationWhereInput
   channel: z.union([ z.lazy(() => EnumChannelFilterSchema),z.lazy(() => ChannelSchema) ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
-  businessPartnerId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  businessPartner: z.union([ z.lazy(() => BusinessPartnerRelationFilterSchema),z.lazy(() => BusinessPartnerWhereInputSchema) ]).optional(),
+  completedAt: z.union([ z.lazy(() => DateTimeNullableFilterSchema),z.coerce.date() ]).optional().nullable(),
+  outletBusinessPartnerId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  outletBusinessPartner: z.union([ z.lazy(() => BusinessPartnerRelationFilterSchema),z.lazy(() => BusinessPartnerWhereInputSchema) ]).optional(),
+  parties: z.lazy(() => PartyListRelationFilterSchema).optional()
 }).strict();
 
 export const ApplicationOrderByWithRelationInputSchema: z.ZodType<Prisma.ApplicationOrderByWithRelationInput> = z.object({
@@ -499,8 +608,10 @@ export const ApplicationOrderByWithRelationInputSchema: z.ZodType<Prisma.Applica
   channel: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
-  businessPartnerId: z.lazy(() => SortOrderSchema).optional(),
-  businessPartner: z.lazy(() => BusinessPartnerOrderByWithRelationInputSchema).optional()
+  completedAt: z.lazy(() => SortOrderSchema).optional(),
+  outletBusinessPartnerId: z.lazy(() => SortOrderSchema).optional(),
+  outletBusinessPartner: z.lazy(() => BusinessPartnerOrderByWithRelationInputSchema).optional(),
+  parties: z.lazy(() => PartyOrderByRelationAggregateInputSchema).optional()
 }).strict();
 
 export const ApplicationWhereUniqueInputSchema: z.ZodType<Prisma.ApplicationWhereUniqueInput> = z.object({
@@ -517,7 +628,8 @@ export const ApplicationOrderByWithAggregationInputSchema: z.ZodType<Prisma.Appl
   channel: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
-  businessPartnerId: z.lazy(() => SortOrderSchema).optional(),
+  completedAt: z.lazy(() => SortOrderSchema).optional(),
+  outletBusinessPartnerId: z.lazy(() => SortOrderSchema).optional(),
   _count: z.lazy(() => ApplicationCountOrderByAggregateInputSchema).optional(),
   _avg: z.lazy(() => ApplicationAvgOrderByAggregateInputSchema).optional(),
   _max: z.lazy(() => ApplicationMaxOrderByAggregateInputSchema).optional(),
@@ -538,7 +650,8 @@ export const ApplicationScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.A
   channel: z.union([ z.lazy(() => EnumChannelWithAggregatesFilterSchema),z.lazy(() => ChannelSchema) ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
-  businessPartnerId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  completedAt: z.union([ z.lazy(() => DateTimeNullableWithAggregatesFilterSchema),z.coerce.date() ]).optional().nullable(),
+  outletBusinessPartnerId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
 }).strict();
 
 export const BusinessPartnerWhereInputSchema: z.ZodType<Prisma.BusinessPartnerWhereInput> = z.object({
@@ -546,6 +659,7 @@ export const BusinessPartnerWhereInputSchema: z.ZodType<Prisma.BusinessPartnerWh
   OR: z.lazy(() => BusinessPartnerWhereInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => BusinessPartnerWhereInputSchema),z.lazy(() => BusinessPartnerWhereInputSchema).array() ]).optional(),
   id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  type: z.union([ z.lazy(() => EnumBusinessPartnerTypeFilterSchema),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
   firstName: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   lastName: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   email: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
@@ -554,11 +668,14 @@ export const BusinessPartnerWhereInputSchema: z.ZodType<Prisma.BusinessPartnerWh
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   addressId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   address: z.union([ z.lazy(() => AddressRelationFilterSchema),z.lazy(() => AddressWhereInputSchema) ]).optional(),
-  applications: z.lazy(() => ApplicationListRelationFilterSchema).optional()
+  account: z.union([ z.lazy(() => AccountRelationFilterSchema),z.lazy(() => AccountWhereInputSchema) ]).optional().nullable(),
+  parties: z.lazy(() => PartyListRelationFilterSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationListRelationFilterSchema).optional()
 }).strict();
 
 export const BusinessPartnerOrderByWithRelationInputSchema: z.ZodType<Prisma.BusinessPartnerOrderByWithRelationInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
+  type: z.lazy(() => SortOrderSchema).optional(),
   firstName: z.lazy(() => SortOrderSchema).optional(),
   lastName: z.lazy(() => SortOrderSchema).optional(),
   email: z.lazy(() => SortOrderSchema).optional(),
@@ -567,7 +684,9 @@ export const BusinessPartnerOrderByWithRelationInputSchema: z.ZodType<Prisma.Bus
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
   addressId: z.lazy(() => SortOrderSchema).optional(),
   address: z.lazy(() => AddressOrderByWithRelationInputSchema).optional(),
-  applications: z.lazy(() => ApplicationOrderByRelationAggregateInputSchema).optional()
+  account: z.lazy(() => AccountOrderByWithRelationInputSchema).optional(),
+  parties: z.lazy(() => PartyOrderByRelationAggregateInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationOrderByRelationAggregateInputSchema).optional()
 }).strict();
 
 export const BusinessPartnerWhereUniqueInputSchema: z.ZodType<Prisma.BusinessPartnerWhereUniqueInput> = z.object({
@@ -576,6 +695,7 @@ export const BusinessPartnerWhereUniqueInputSchema: z.ZodType<Prisma.BusinessPar
 
 export const BusinessPartnerOrderByWithAggregationInputSchema: z.ZodType<Prisma.BusinessPartnerOrderByWithAggregationInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
+  type: z.lazy(() => SortOrderSchema).optional(),
   firstName: z.lazy(() => SortOrderSchema).optional(),
   lastName: z.lazy(() => SortOrderSchema).optional(),
   email: z.lazy(() => SortOrderSchema).optional(),
@@ -593,6 +713,7 @@ export const BusinessPartnerScalarWhereWithAggregatesInputSchema: z.ZodType<Pris
   OR: z.lazy(() => BusinessPartnerScalarWhereWithAggregatesInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => BusinessPartnerScalarWhereWithAggregatesInputSchema),z.lazy(() => BusinessPartnerScalarWhereWithAggregatesInputSchema).array() ]).optional(),
   id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  type: z.union([ z.lazy(() => EnumBusinessPartnerTypeWithAggregatesFilterSchema),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
   firstName: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
   lastName: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
   email: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
@@ -600,6 +721,60 @@ export const BusinessPartnerScalarWhereWithAggregatesInputSchema: z.ZodType<Pris
   createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
   addressId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+}).strict();
+
+export const PartyWhereInputSchema: z.ZodType<Prisma.PartyWhereInput> = z.object({
+  AND: z.union([ z.lazy(() => PartyWhereInputSchema),z.lazy(() => PartyWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => PartyWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => PartyWhereInputSchema),z.lazy(() => PartyWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  type: z.union([ z.lazy(() => EnumPartyTypeFilterSchema),z.lazy(() => PartyTypeSchema) ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  businessPartnerId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  applicationId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  businessPartner: z.union([ z.lazy(() => BusinessPartnerRelationFilterSchema),z.lazy(() => BusinessPartnerWhereInputSchema) ]).optional(),
+  application: z.union([ z.lazy(() => ApplicationRelationFilterSchema),z.lazy(() => ApplicationWhereInputSchema) ]).optional(),
+}).strict();
+
+export const PartyOrderByWithRelationInputSchema: z.ZodType<Prisma.PartyOrderByWithRelationInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  type: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  businessPartnerId: z.lazy(() => SortOrderSchema).optional(),
+  applicationId: z.lazy(() => SortOrderSchema).optional(),
+  businessPartner: z.lazy(() => BusinessPartnerOrderByWithRelationInputSchema).optional(),
+  application: z.lazy(() => ApplicationOrderByWithRelationInputSchema).optional()
+}).strict();
+
+export const PartyWhereUniqueInputSchema: z.ZodType<Prisma.PartyWhereUniqueInput> = z.object({
+  id: z.string().cuid().optional(),
+  applicationId: z.string().optional()
+}).strict();
+
+export const PartyOrderByWithAggregationInputSchema: z.ZodType<Prisma.PartyOrderByWithAggregationInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  type: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  businessPartnerId: z.lazy(() => SortOrderSchema).optional(),
+  applicationId: z.lazy(() => SortOrderSchema).optional(),
+  _count: z.lazy(() => PartyCountOrderByAggregateInputSchema).optional(),
+  _max: z.lazy(() => PartyMaxOrderByAggregateInputSchema).optional(),
+  _min: z.lazy(() => PartyMinOrderByAggregateInputSchema).optional()
+}).strict();
+
+export const PartyScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.PartyScalarWhereWithAggregatesInput> = z.object({
+  AND: z.union([ z.lazy(() => PartyScalarWhereWithAggregatesInputSchema),z.lazy(() => PartyScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  OR: z.lazy(() => PartyScalarWhereWithAggregatesInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => PartyScalarWhereWithAggregatesInputSchema),z.lazy(() => PartyScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  type: z.union([ z.lazy(() => EnumPartyTypeWithAggregatesFilterSchema),z.lazy(() => PartyTypeSchema) ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
+  updatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
+  businessPartnerId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  applicationId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
 }).strict();
 
 export const AddressWhereInputSchema: z.ZodType<Prisma.AddressWhereInput> = z.object({
@@ -655,6 +830,55 @@ export const AddressScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.Addre
   postal: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
+}).strict();
+
+export const AccountWhereInputSchema: z.ZodType<Prisma.AccountWhereInput> = z.object({
+  AND: z.union([ z.lazy(() => AccountWhereInputSchema),z.lazy(() => AccountWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => AccountWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => AccountWhereInputSchema),z.lazy(() => AccountWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  username: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  businessPartnerId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  businessPartner: z.union([ z.lazy(() => BusinessPartnerRelationFilterSchema),z.lazy(() => BusinessPartnerWhereInputSchema) ]).optional(),
+}).strict();
+
+export const AccountOrderByWithRelationInputSchema: z.ZodType<Prisma.AccountOrderByWithRelationInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  username: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  businessPartnerId: z.lazy(() => SortOrderSchema).optional(),
+  businessPartner: z.lazy(() => BusinessPartnerOrderByWithRelationInputSchema).optional()
+}).strict();
+
+export const AccountWhereUniqueInputSchema: z.ZodType<Prisma.AccountWhereUniqueInput> = z.object({
+  id: z.string().cuid().optional(),
+  username: z.string().optional(),
+  businessPartnerId: z.string().optional()
+}).strict();
+
+export const AccountOrderByWithAggregationInputSchema: z.ZodType<Prisma.AccountOrderByWithAggregationInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  username: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  businessPartnerId: z.lazy(() => SortOrderSchema).optional(),
+  _count: z.lazy(() => AccountCountOrderByAggregateInputSchema).optional(),
+  _max: z.lazy(() => AccountMaxOrderByAggregateInputSchema).optional(),
+  _min: z.lazy(() => AccountMinOrderByAggregateInputSchema).optional()
+}).strict();
+
+export const AccountScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.AccountScalarWhereWithAggregatesInput> = z.object({
+  AND: z.union([ z.lazy(() => AccountScalarWhereWithAggregatesInputSchema),z.lazy(() => AccountScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  OR: z.lazy(() => AccountScalarWhereWithAggregatesInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => AccountScalarWhereWithAggregatesInputSchema),z.lazy(() => AccountScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  username: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
+  updatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
+  businessPartnerId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
 }).strict();
 
 export const ChatCreateInputSchema: z.ZodType<Prisma.ChatCreateInput> = z.object({
@@ -811,9 +1035,11 @@ export const ApplicationCreateInputSchema: z.ZodType<Prisma.ApplicationCreateInp
   productLine: z.lazy(() => ProductLineSchema).optional(),
   businessLine: z.lazy(() => BusinessLineSchema).optional(),
   channel: z.lazy(() => ChannelSchema).optional(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-  businessPartner: z.lazy(() => BusinessPartnerCreateNestedOneWithoutApplicationsInputSchema)
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  completedAt: z.coerce.date().optional().nullable(),
+  outletBusinessPartner: z.lazy(() => BusinessPartnerCreateNestedOneWithoutOutletApplicationsInputSchema),
+  parties: z.lazy(() => PartyCreateNestedManyWithoutApplicationInputSchema).optional()
 }).strict();
 
 export const ApplicationUncheckedCreateInputSchema: z.ZodType<Prisma.ApplicationUncheckedCreateInput> = z.object({
@@ -824,9 +1050,11 @@ export const ApplicationUncheckedCreateInputSchema: z.ZodType<Prisma.Application
   productLine: z.lazy(() => ProductLineSchema).optional(),
   businessLine: z.lazy(() => BusinessLineSchema).optional(),
   channel: z.lazy(() => ChannelSchema).optional(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-  businessPartnerId: z.string()
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  completedAt: z.coerce.date().optional().nullable(),
+  outletBusinessPartnerId: z.string(),
+  parties: z.lazy(() => PartyUncheckedCreateNestedManyWithoutApplicationInputSchema).optional()
 }).strict();
 
 export const ApplicationUpdateInputSchema: z.ZodType<Prisma.ApplicationUpdateInput> = z.object({
@@ -839,7 +1067,9 @@ export const ApplicationUpdateInputSchema: z.ZodType<Prisma.ApplicationUpdateInp
   channel: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => EnumChannelFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  businessPartner: z.lazy(() => BusinessPartnerUpdateOneRequiredWithoutApplicationsNestedInputSchema).optional()
+  completedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  outletBusinessPartner: z.lazy(() => BusinessPartnerUpdateOneRequiredWithoutOutletApplicationsNestedInputSchema).optional(),
+  parties: z.lazy(() => PartyUpdateManyWithoutApplicationNestedInputSchema).optional()
 }).strict();
 
 export const ApplicationUncheckedUpdateInputSchema: z.ZodType<Prisma.ApplicationUncheckedUpdateInput> = z.object({
@@ -852,7 +1082,9 @@ export const ApplicationUncheckedUpdateInputSchema: z.ZodType<Prisma.Application
   channel: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => EnumChannelFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  businessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  completedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  outletBusinessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  parties: z.lazy(() => PartyUncheckedUpdateManyWithoutApplicationNestedInputSchema).optional()
 }).strict();
 
 export const ApplicationCreateManyInputSchema: z.ZodType<Prisma.ApplicationCreateManyInput> = z.object({
@@ -863,9 +1095,10 @@ export const ApplicationCreateManyInputSchema: z.ZodType<Prisma.ApplicationCreat
   productLine: z.lazy(() => ProductLineSchema).optional(),
   businessLine: z.lazy(() => BusinessLineSchema).optional(),
   channel: z.lazy(() => ChannelSchema).optional(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-  businessPartnerId: z.string()
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  completedAt: z.coerce.date().optional().nullable(),
+  outletBusinessPartnerId: z.string()
 }).strict();
 
 export const ApplicationUpdateManyMutationInputSchema: z.ZodType<Prisma.ApplicationUpdateManyMutationInput> = z.object({
@@ -878,6 +1111,7 @@ export const ApplicationUpdateManyMutationInputSchema: z.ZodType<Prisma.Applicat
   channel: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => EnumChannelFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  completedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
 }).strict();
 
 export const ApplicationUncheckedUpdateManyInputSchema: z.ZodType<Prisma.ApplicationUncheckedUpdateManyInput> = z.object({
@@ -890,11 +1124,13 @@ export const ApplicationUncheckedUpdateManyInputSchema: z.ZodType<Prisma.Applica
   channel: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => EnumChannelFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  businessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  completedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  outletBusinessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const BusinessPartnerCreateInputSchema: z.ZodType<Prisma.BusinessPartnerCreateInput> = z.object({
   id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
@@ -902,11 +1138,14 @@ export const BusinessPartnerCreateInputSchema: z.ZodType<Prisma.BusinessPartnerC
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
   address: z.lazy(() => AddressCreateNestedOneWithoutBusinessPartnersInputSchema),
-  applications: z.lazy(() => ApplicationCreateNestedManyWithoutBusinessPartnerInputSchema).optional()
+  account: z.lazy(() => AccountCreateNestedOneWithoutBusinessPartnerInputSchema).optional(),
+  parties: z.lazy(() => PartyCreateNestedManyWithoutBusinessPartnerInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationCreateNestedManyWithoutOutletBusinessPartnerInputSchema).optional()
 }).strict();
 
 export const BusinessPartnerUncheckedCreateInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedCreateInput> = z.object({
   id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
@@ -914,11 +1153,14 @@ export const BusinessPartnerUncheckedCreateInputSchema: z.ZodType<Prisma.Busines
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
   addressId: z.string(),
-  applications: z.lazy(() => ApplicationUncheckedCreateNestedManyWithoutBusinessPartnerInputSchema).optional()
+  account: z.lazy(() => AccountUncheckedCreateNestedOneWithoutBusinessPartnerInputSchema).optional(),
+  parties: z.lazy(() => PartyUncheckedCreateNestedManyWithoutBusinessPartnerInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUncheckedCreateNestedManyWithoutOutletBusinessPartnerInputSchema).optional()
 }).strict();
 
 export const BusinessPartnerUpdateInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
   firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
@@ -926,11 +1168,14 @@ export const BusinessPartnerUpdateInputSchema: z.ZodType<Prisma.BusinessPartnerU
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   address: z.lazy(() => AddressUpdateOneRequiredWithoutBusinessPartnersNestedInputSchema).optional(),
-  applications: z.lazy(() => ApplicationUpdateManyWithoutBusinessPartnerNestedInputSchema).optional()
+  account: z.lazy(() => AccountUpdateOneWithoutBusinessPartnerNestedInputSchema).optional(),
+  parties: z.lazy(() => PartyUpdateManyWithoutBusinessPartnerNestedInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUpdateManyWithoutOutletBusinessPartnerNestedInputSchema).optional()
 }).strict();
 
 export const BusinessPartnerUncheckedUpdateInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedUpdateInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
   firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
@@ -938,11 +1183,14 @@ export const BusinessPartnerUncheckedUpdateInputSchema: z.ZodType<Prisma.Busines
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   addressId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  applications: z.lazy(() => ApplicationUncheckedUpdateManyWithoutBusinessPartnerNestedInputSchema).optional()
+  account: z.lazy(() => AccountUncheckedUpdateOneWithoutBusinessPartnerNestedInputSchema).optional(),
+  parties: z.lazy(() => PartyUncheckedUpdateManyWithoutBusinessPartnerNestedInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUncheckedUpdateManyWithoutOutletBusinessPartnerNestedInputSchema).optional()
 }).strict();
 
 export const BusinessPartnerCreateManyInputSchema: z.ZodType<Prisma.BusinessPartnerCreateManyInput> = z.object({
   id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
@@ -954,6 +1202,7 @@ export const BusinessPartnerCreateManyInputSchema: z.ZodType<Prisma.BusinessPart
 
 export const BusinessPartnerUpdateManyMutationInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateManyMutationInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
   firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
@@ -964,6 +1213,7 @@ export const BusinessPartnerUpdateManyMutationInputSchema: z.ZodType<Prisma.Busi
 
 export const BusinessPartnerUncheckedUpdateManyInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedUpdateManyInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
   firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
@@ -971,6 +1221,67 @@ export const BusinessPartnerUncheckedUpdateManyInputSchema: z.ZodType<Prisma.Bus
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   addressId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const PartyCreateInputSchema: z.ZodType<Prisma.PartyCreateInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => PartyTypeSchema),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  businessPartner: z.lazy(() => BusinessPartnerCreateNestedOneWithoutPartiesInputSchema),
+  application: z.lazy(() => ApplicationCreateNestedOneWithoutPartiesInputSchema)
+}).strict();
+
+export const PartyUncheckedCreateInputSchema: z.ZodType<Prisma.PartyUncheckedCreateInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => PartyTypeSchema),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  businessPartnerId: z.string(),
+  applicationId: z.string()
+}).strict();
+
+export const PartyUpdateInputSchema: z.ZodType<Prisma.PartyUpdateInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => EnumPartyTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  businessPartner: z.lazy(() => BusinessPartnerUpdateOneRequiredWithoutPartiesNestedInputSchema).optional(),
+  application: z.lazy(() => ApplicationUpdateOneRequiredWithoutPartiesNestedInputSchema).optional()
+}).strict();
+
+export const PartyUncheckedUpdateInputSchema: z.ZodType<Prisma.PartyUncheckedUpdateInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => EnumPartyTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  businessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  applicationId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const PartyCreateManyInputSchema: z.ZodType<Prisma.PartyCreateManyInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => PartyTypeSchema),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  businessPartnerId: z.string(),
+  applicationId: z.string()
+}).strict();
+
+export const PartyUpdateManyMutationInputSchema: z.ZodType<Prisma.PartyUpdateManyMutationInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => EnumPartyTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const PartyUncheckedUpdateManyInputSchema: z.ZodType<Prisma.PartyUncheckedUpdateManyInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => EnumPartyTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  businessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  applicationId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const AddressCreateInputSchema: z.ZodType<Prisma.AddressCreateInput> = z.object({
@@ -1045,6 +1356,61 @@ export const AddressUncheckedUpdateManyInputSchema: z.ZodType<Prisma.AddressUnch
   postal: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const AccountCreateInputSchema: z.ZodType<Prisma.AccountCreateInput> = z.object({
+  id: z.string().cuid().optional(),
+  username: z.string(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  businessPartner: z.lazy(() => BusinessPartnerCreateNestedOneWithoutAccountInputSchema)
+}).strict();
+
+export const AccountUncheckedCreateInputSchema: z.ZodType<Prisma.AccountUncheckedCreateInput> = z.object({
+  id: z.string().cuid().optional(),
+  username: z.string(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  businessPartnerId: z.string()
+}).strict();
+
+export const AccountUpdateInputSchema: z.ZodType<Prisma.AccountUpdateInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  username: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  businessPartner: z.lazy(() => BusinessPartnerUpdateOneRequiredWithoutAccountNestedInputSchema).optional()
+}).strict();
+
+export const AccountUncheckedUpdateInputSchema: z.ZodType<Prisma.AccountUncheckedUpdateInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  username: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  businessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const AccountCreateManyInputSchema: z.ZodType<Prisma.AccountCreateManyInput> = z.object({
+  id: z.string().cuid().optional(),
+  username: z.string(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  businessPartnerId: z.string()
+}).strict();
+
+export const AccountUpdateManyMutationInputSchema: z.ZodType<Prisma.AccountUpdateManyMutationInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  username: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const AccountUncheckedUpdateManyInputSchema: z.ZodType<Prisma.AccountUncheckedUpdateManyInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  username: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  businessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const StringFilterSchema: z.ZodType<Prisma.StringFilter> = z.object({
@@ -1331,9 +1697,30 @@ export const EnumChannelFilterSchema: z.ZodType<Prisma.EnumChannelFilter> = z.ob
   not: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => NestedEnumChannelFilterSchema) ]).optional(),
 }).strict();
 
+export const DateTimeNullableFilterSchema: z.ZodType<Prisma.DateTimeNullableFilter> = z.object({
+  equals: z.coerce.date().optional().nullable(),
+  in: z.union([ z.coerce.date().array(),z.coerce.date() ]).optional().nullable(),
+  notIn: z.union([ z.coerce.date().array(),z.coerce.date() ]).optional().nullable(),
+  lt: z.coerce.date().optional(),
+  lte: z.coerce.date().optional(),
+  gt: z.coerce.date().optional(),
+  gte: z.coerce.date().optional(),
+  not: z.union([ z.coerce.date(),z.lazy(() => NestedDateTimeNullableFilterSchema) ]).optional().nullable(),
+}).strict();
+
 export const BusinessPartnerRelationFilterSchema: z.ZodType<Prisma.BusinessPartnerRelationFilter> = z.object({
   is: z.lazy(() => BusinessPartnerWhereInputSchema).optional(),
   isNot: z.lazy(() => BusinessPartnerWhereInputSchema).optional()
+}).strict();
+
+export const PartyListRelationFilterSchema: z.ZodType<Prisma.PartyListRelationFilter> = z.object({
+  every: z.lazy(() => PartyWhereInputSchema).optional(),
+  some: z.lazy(() => PartyWhereInputSchema).optional(),
+  none: z.lazy(() => PartyWhereInputSchema).optional()
+}).strict();
+
+export const PartyOrderByRelationAggregateInputSchema: z.ZodType<Prisma.PartyOrderByRelationAggregateInput> = z.object({
+  _count: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
 export const ApplicationCountOrderByAggregateInputSchema: z.ZodType<Prisma.ApplicationCountOrderByAggregateInput> = z.object({
@@ -1346,7 +1733,8 @@ export const ApplicationCountOrderByAggregateInputSchema: z.ZodType<Prisma.Appli
   channel: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
-  businessPartnerId: z.lazy(() => SortOrderSchema).optional()
+  completedAt: z.lazy(() => SortOrderSchema).optional(),
+  outletBusinessPartnerId: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
 export const ApplicationAvgOrderByAggregateInputSchema: z.ZodType<Prisma.ApplicationAvgOrderByAggregateInput> = z.object({
@@ -1363,7 +1751,8 @@ export const ApplicationMaxOrderByAggregateInputSchema: z.ZodType<Prisma.Applica
   channel: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
-  businessPartnerId: z.lazy(() => SortOrderSchema).optional()
+  completedAt: z.lazy(() => SortOrderSchema).optional(),
+  outletBusinessPartnerId: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
 export const ApplicationMinOrderByAggregateInputSchema: z.ZodType<Prisma.ApplicationMinOrderByAggregateInput> = z.object({
@@ -1376,7 +1765,8 @@ export const ApplicationMinOrderByAggregateInputSchema: z.ZodType<Prisma.Applica
   channel: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
-  businessPartnerId: z.lazy(() => SortOrderSchema).optional()
+  completedAt: z.lazy(() => SortOrderSchema).optional(),
+  outletBusinessPartnerId: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
 export const ApplicationSumOrderByAggregateInputSchema: z.ZodType<Prisma.ApplicationSumOrderByAggregateInput> = z.object({
@@ -1449,9 +1839,35 @@ export const EnumChannelWithAggregatesFilterSchema: z.ZodType<Prisma.EnumChannel
   _max: z.lazy(() => NestedEnumChannelFilterSchema).optional()
 }).strict();
 
+export const DateTimeNullableWithAggregatesFilterSchema: z.ZodType<Prisma.DateTimeNullableWithAggregatesFilter> = z.object({
+  equals: z.coerce.date().optional().nullable(),
+  in: z.union([ z.coerce.date().array(),z.coerce.date() ]).optional().nullable(),
+  notIn: z.union([ z.coerce.date().array(),z.coerce.date() ]).optional().nullable(),
+  lt: z.coerce.date().optional(),
+  lte: z.coerce.date().optional(),
+  gt: z.coerce.date().optional(),
+  gte: z.coerce.date().optional(),
+  not: z.union([ z.coerce.date(),z.lazy(() => NestedDateTimeNullableWithAggregatesFilterSchema) ]).optional().nullable(),
+  _count: z.lazy(() => NestedIntNullableFilterSchema).optional(),
+  _min: z.lazy(() => NestedDateTimeNullableFilterSchema).optional(),
+  _max: z.lazy(() => NestedDateTimeNullableFilterSchema).optional()
+}).strict();
+
+export const EnumBusinessPartnerTypeFilterSchema: z.ZodType<Prisma.EnumBusinessPartnerTypeFilter> = z.object({
+  equals: z.lazy(() => BusinessPartnerTypeSchema).optional(),
+  in: z.union([ z.lazy(() => BusinessPartnerTypeSchema).array(),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
+  notIn: z.union([ z.lazy(() => BusinessPartnerTypeSchema).array(),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
+  not: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => NestedEnumBusinessPartnerTypeFilterSchema) ]).optional(),
+}).strict();
+
 export const AddressRelationFilterSchema: z.ZodType<Prisma.AddressRelationFilter> = z.object({
   is: z.lazy(() => AddressWhereInputSchema).optional(),
   isNot: z.lazy(() => AddressWhereInputSchema).optional()
+}).strict();
+
+export const AccountRelationFilterSchema: z.ZodType<Prisma.AccountRelationFilter> = z.object({
+  is: z.lazy(() => AccountWhereInputSchema).optional().nullable(),
+  isNot: z.lazy(() => AccountWhereInputSchema).optional().nullable()
 }).strict();
 
 export const ApplicationListRelationFilterSchema: z.ZodType<Prisma.ApplicationListRelationFilter> = z.object({
@@ -1466,6 +1882,7 @@ export const ApplicationOrderByRelationAggregateInputSchema: z.ZodType<Prisma.Ap
 
 export const BusinessPartnerCountOrderByAggregateInputSchema: z.ZodType<Prisma.BusinessPartnerCountOrderByAggregateInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
+  type: z.lazy(() => SortOrderSchema).optional(),
   firstName: z.lazy(() => SortOrderSchema).optional(),
   lastName: z.lazy(() => SortOrderSchema).optional(),
   email: z.lazy(() => SortOrderSchema).optional(),
@@ -1477,6 +1894,7 @@ export const BusinessPartnerCountOrderByAggregateInputSchema: z.ZodType<Prisma.B
 
 export const BusinessPartnerMaxOrderByAggregateInputSchema: z.ZodType<Prisma.BusinessPartnerMaxOrderByAggregateInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
+  type: z.lazy(() => SortOrderSchema).optional(),
   firstName: z.lazy(() => SortOrderSchema).optional(),
   lastName: z.lazy(() => SortOrderSchema).optional(),
   email: z.lazy(() => SortOrderSchema).optional(),
@@ -1488,6 +1906,7 @@ export const BusinessPartnerMaxOrderByAggregateInputSchema: z.ZodType<Prisma.Bus
 
 export const BusinessPartnerMinOrderByAggregateInputSchema: z.ZodType<Prisma.BusinessPartnerMinOrderByAggregateInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
+  type: z.lazy(() => SortOrderSchema).optional(),
   firstName: z.lazy(() => SortOrderSchema).optional(),
   lastName: z.lazy(() => SortOrderSchema).optional(),
   email: z.lazy(() => SortOrderSchema).optional(),
@@ -1495,6 +1914,65 @@ export const BusinessPartnerMinOrderByAggregateInputSchema: z.ZodType<Prisma.Bus
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
   addressId: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const EnumBusinessPartnerTypeWithAggregatesFilterSchema: z.ZodType<Prisma.EnumBusinessPartnerTypeWithAggregatesFilter> = z.object({
+  equals: z.lazy(() => BusinessPartnerTypeSchema).optional(),
+  in: z.union([ z.lazy(() => BusinessPartnerTypeSchema).array(),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
+  notIn: z.union([ z.lazy(() => BusinessPartnerTypeSchema).array(),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
+  not: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => NestedEnumBusinessPartnerTypeWithAggregatesFilterSchema) ]).optional(),
+  _count: z.lazy(() => NestedIntFilterSchema).optional(),
+  _min: z.lazy(() => NestedEnumBusinessPartnerTypeFilterSchema).optional(),
+  _max: z.lazy(() => NestedEnumBusinessPartnerTypeFilterSchema).optional()
+}).strict();
+
+export const EnumPartyTypeFilterSchema: z.ZodType<Prisma.EnumPartyTypeFilter> = z.object({
+  equals: z.lazy(() => PartyTypeSchema).optional(),
+  in: z.union([ z.lazy(() => PartyTypeSchema).array(),z.lazy(() => PartyTypeSchema) ]).optional(),
+  notIn: z.union([ z.lazy(() => PartyTypeSchema).array(),z.lazy(() => PartyTypeSchema) ]).optional(),
+  not: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => NestedEnumPartyTypeFilterSchema) ]).optional(),
+}).strict();
+
+export const ApplicationRelationFilterSchema: z.ZodType<Prisma.ApplicationRelationFilter> = z.object({
+  is: z.lazy(() => ApplicationWhereInputSchema).optional(),
+  isNot: z.lazy(() => ApplicationWhereInputSchema).optional()
+}).strict();
+
+export const PartyCountOrderByAggregateInputSchema: z.ZodType<Prisma.PartyCountOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  type: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  businessPartnerId: z.lazy(() => SortOrderSchema).optional(),
+  applicationId: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const PartyMaxOrderByAggregateInputSchema: z.ZodType<Prisma.PartyMaxOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  type: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  businessPartnerId: z.lazy(() => SortOrderSchema).optional(),
+  applicationId: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const PartyMinOrderByAggregateInputSchema: z.ZodType<Prisma.PartyMinOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  type: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  businessPartnerId: z.lazy(() => SortOrderSchema).optional(),
+  applicationId: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const EnumPartyTypeWithAggregatesFilterSchema: z.ZodType<Prisma.EnumPartyTypeWithAggregatesFilter> = z.object({
+  equals: z.lazy(() => PartyTypeSchema).optional(),
+  in: z.union([ z.lazy(() => PartyTypeSchema).array(),z.lazy(() => PartyTypeSchema) ]).optional(),
+  notIn: z.union([ z.lazy(() => PartyTypeSchema).array(),z.lazy(() => PartyTypeSchema) ]).optional(),
+  not: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => NestedEnumPartyTypeWithAggregatesFilterSchema) ]).optional(),
+  _count: z.lazy(() => NestedIntFilterSchema).optional(),
+  _min: z.lazy(() => NestedEnumPartyTypeFilterSchema).optional(),
+  _max: z.lazy(() => NestedEnumPartyTypeFilterSchema).optional()
 }).strict();
 
 export const BusinessPartnerListRelationFilterSchema: z.ZodType<Prisma.BusinessPartnerListRelationFilter> = z.object({
@@ -1535,6 +2013,30 @@ export const AddressMinOrderByAggregateInputSchema: z.ZodType<Prisma.AddressMinO
   postal: z.lazy(() => SortOrderSchema).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const AccountCountOrderByAggregateInputSchema: z.ZodType<Prisma.AccountCountOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  username: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  businessPartnerId: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const AccountMaxOrderByAggregateInputSchema: z.ZodType<Prisma.AccountMaxOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  username: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  businessPartnerId: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const AccountMinOrderByAggregateInputSchema: z.ZodType<Prisma.AccountMinOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  username: z.lazy(() => SortOrderSchema).optional(),
+  createdAt: z.lazy(() => SortOrderSchema).optional(),
+  updatedAt: z.lazy(() => SortOrderSchema).optional(),
+  businessPartnerId: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
 export const MessageCreateNestedManyWithoutChatInputSchema: z.ZodType<Prisma.MessageCreateNestedManyWithoutChatInput> = z.object({
@@ -1671,10 +2173,24 @@ export const MessageUncheckedUpdateManyWithoutResponseToNestedInputSchema: z.Zod
   deleteMany: z.union([ z.lazy(() => MessageScalarWhereInputSchema),z.lazy(() => MessageScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
-export const BusinessPartnerCreateNestedOneWithoutApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerCreateNestedOneWithoutApplicationsInput> = z.object({
-  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutApplicationsInputSchema) ]).optional(),
-  connectOrCreate: z.lazy(() => BusinessPartnerCreateOrConnectWithoutApplicationsInputSchema).optional(),
+export const BusinessPartnerCreateNestedOneWithoutOutletApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerCreateNestedOneWithoutOutletApplicationsInput> = z.object({
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutOutletApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutOutletApplicationsInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => BusinessPartnerCreateOrConnectWithoutOutletApplicationsInputSchema).optional(),
   connect: z.lazy(() => BusinessPartnerWhereUniqueInputSchema).optional()
+}).strict();
+
+export const PartyCreateNestedManyWithoutApplicationInputSchema: z.ZodType<Prisma.PartyCreateNestedManyWithoutApplicationInput> = z.object({
+  create: z.union([ z.lazy(() => PartyCreateWithoutApplicationInputSchema),z.lazy(() => PartyCreateWithoutApplicationInputSchema).array(),z.lazy(() => PartyUncheckedCreateWithoutApplicationInputSchema),z.lazy(() => PartyUncheckedCreateWithoutApplicationInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => PartyCreateOrConnectWithoutApplicationInputSchema),z.lazy(() => PartyCreateOrConnectWithoutApplicationInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => PartyCreateManyApplicationInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+}).strict();
+
+export const PartyUncheckedCreateNestedManyWithoutApplicationInputSchema: z.ZodType<Prisma.PartyUncheckedCreateNestedManyWithoutApplicationInput> = z.object({
+  create: z.union([ z.lazy(() => PartyCreateWithoutApplicationInputSchema),z.lazy(() => PartyCreateWithoutApplicationInputSchema).array(),z.lazy(() => PartyUncheckedCreateWithoutApplicationInputSchema),z.lazy(() => PartyUncheckedCreateWithoutApplicationInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => PartyCreateOrConnectWithoutApplicationInputSchema),z.lazy(() => PartyCreateOrConnectWithoutApplicationInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => PartyCreateManyApplicationInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
 export const FloatFieldUpdateOperationsInputSchema: z.ZodType<Prisma.FloatFieldUpdateOperationsInput> = z.object({
@@ -1705,12 +2221,44 @@ export const EnumChannelFieldUpdateOperationsInputSchema: z.ZodType<Prisma.EnumC
   set: z.lazy(() => ChannelSchema).optional()
 }).strict();
 
-export const BusinessPartnerUpdateOneRequiredWithoutApplicationsNestedInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateOneRequiredWithoutApplicationsNestedInput> = z.object({
-  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutApplicationsInputSchema) ]).optional(),
-  connectOrCreate: z.lazy(() => BusinessPartnerCreateOrConnectWithoutApplicationsInputSchema).optional(),
-  upsert: z.lazy(() => BusinessPartnerUpsertWithoutApplicationsInputSchema).optional(),
+export const NullableDateTimeFieldUpdateOperationsInputSchema: z.ZodType<Prisma.NullableDateTimeFieldUpdateOperationsInput> = z.object({
+  set: z.coerce.date().optional().nullable()
+}).strict();
+
+export const BusinessPartnerUpdateOneRequiredWithoutOutletApplicationsNestedInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateOneRequiredWithoutOutletApplicationsNestedInput> = z.object({
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutOutletApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutOutletApplicationsInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => BusinessPartnerCreateOrConnectWithoutOutletApplicationsInputSchema).optional(),
+  upsert: z.lazy(() => BusinessPartnerUpsertWithoutOutletApplicationsInputSchema).optional(),
   connect: z.lazy(() => BusinessPartnerWhereUniqueInputSchema).optional(),
-  update: z.union([ z.lazy(() => BusinessPartnerUpdateWithoutApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedUpdateWithoutApplicationsInputSchema) ]).optional(),
+  update: z.union([ z.lazy(() => BusinessPartnerUpdateWithoutOutletApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedUpdateWithoutOutletApplicationsInputSchema) ]).optional(),
+}).strict();
+
+export const PartyUpdateManyWithoutApplicationNestedInputSchema: z.ZodType<Prisma.PartyUpdateManyWithoutApplicationNestedInput> = z.object({
+  create: z.union([ z.lazy(() => PartyCreateWithoutApplicationInputSchema),z.lazy(() => PartyCreateWithoutApplicationInputSchema).array(),z.lazy(() => PartyUncheckedCreateWithoutApplicationInputSchema),z.lazy(() => PartyUncheckedCreateWithoutApplicationInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => PartyCreateOrConnectWithoutApplicationInputSchema),z.lazy(() => PartyCreateOrConnectWithoutApplicationInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => PartyUpsertWithWhereUniqueWithoutApplicationInputSchema),z.lazy(() => PartyUpsertWithWhereUniqueWithoutApplicationInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => PartyCreateManyApplicationInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => PartyUpdateWithWhereUniqueWithoutApplicationInputSchema),z.lazy(() => PartyUpdateWithWhereUniqueWithoutApplicationInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => PartyUpdateManyWithWhereWithoutApplicationInputSchema),z.lazy(() => PartyUpdateManyWithWhereWithoutApplicationInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => PartyScalarWhereInputSchema),z.lazy(() => PartyScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
+export const PartyUncheckedUpdateManyWithoutApplicationNestedInputSchema: z.ZodType<Prisma.PartyUncheckedUpdateManyWithoutApplicationNestedInput> = z.object({
+  create: z.union([ z.lazy(() => PartyCreateWithoutApplicationInputSchema),z.lazy(() => PartyCreateWithoutApplicationInputSchema).array(),z.lazy(() => PartyUncheckedCreateWithoutApplicationInputSchema),z.lazy(() => PartyUncheckedCreateWithoutApplicationInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => PartyCreateOrConnectWithoutApplicationInputSchema),z.lazy(() => PartyCreateOrConnectWithoutApplicationInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => PartyUpsertWithWhereUniqueWithoutApplicationInputSchema),z.lazy(() => PartyUpsertWithWhereUniqueWithoutApplicationInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => PartyCreateManyApplicationInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => PartyUpdateWithWhereUniqueWithoutApplicationInputSchema),z.lazy(() => PartyUpdateWithWhereUniqueWithoutApplicationInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => PartyUpdateManyWithWhereWithoutApplicationInputSchema),z.lazy(() => PartyUpdateManyWithWhereWithoutApplicationInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => PartyScalarWhereInputSchema),z.lazy(() => PartyScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
 export const AddressCreateNestedOneWithoutBusinessPartnersInputSchema: z.ZodType<Prisma.AddressCreateNestedOneWithoutBusinessPartnersInput> = z.object({
@@ -1719,18 +2267,48 @@ export const AddressCreateNestedOneWithoutBusinessPartnersInputSchema: z.ZodType
   connect: z.lazy(() => AddressWhereUniqueInputSchema).optional()
 }).strict();
 
-export const ApplicationCreateNestedManyWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationCreateNestedManyWithoutBusinessPartnerInput> = z.object({
-  create: z.union([ z.lazy(() => ApplicationCreateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateWithoutBusinessPartnerInputSchema).array(),z.lazy(() => ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => ApplicationCreateOrConnectWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateOrConnectWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => ApplicationCreateManyBusinessPartnerInputEnvelopeSchema).optional(),
+export const AccountCreateNestedOneWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.AccountCreateNestedOneWithoutBusinessPartnerInput> = z.object({
+  create: z.union([ z.lazy(() => AccountCreateWithoutBusinessPartnerInputSchema),z.lazy(() => AccountUncheckedCreateWithoutBusinessPartnerInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => AccountCreateOrConnectWithoutBusinessPartnerInputSchema).optional(),
+  connect: z.lazy(() => AccountWhereUniqueInputSchema).optional()
+}).strict();
+
+export const PartyCreateNestedManyWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.PartyCreateNestedManyWithoutBusinessPartnerInput> = z.object({
+  create: z.union([ z.lazy(() => PartyCreateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyCreateWithoutBusinessPartnerInputSchema).array(),z.lazy(() => PartyUncheckedCreateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUncheckedCreateWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => PartyCreateOrConnectWithoutBusinessPartnerInputSchema),z.lazy(() => PartyCreateOrConnectWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => PartyCreateManyBusinessPartnerInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+}).strict();
+
+export const ApplicationCreateNestedManyWithoutOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationCreateNestedManyWithoutOutletBusinessPartnerInput> = z.object({
+  create: z.union([ z.lazy(() => ApplicationCreateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateWithoutOutletBusinessPartnerInputSchema).array(),z.lazy(() => ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => ApplicationCreateOrConnectWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateOrConnectWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => ApplicationCreateManyOutletBusinessPartnerInputEnvelopeSchema).optional(),
   connect: z.union([ z.lazy(() => ApplicationWhereUniqueInputSchema),z.lazy(() => ApplicationWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
-export const ApplicationUncheckedCreateNestedManyWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUncheckedCreateNestedManyWithoutBusinessPartnerInput> = z.object({
-  create: z.union([ z.lazy(() => ApplicationCreateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateWithoutBusinessPartnerInputSchema).array(),z.lazy(() => ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => ApplicationCreateOrConnectWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateOrConnectWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => ApplicationCreateManyBusinessPartnerInputEnvelopeSchema).optional(),
+export const AccountUncheckedCreateNestedOneWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.AccountUncheckedCreateNestedOneWithoutBusinessPartnerInput> = z.object({
+  create: z.union([ z.lazy(() => AccountCreateWithoutBusinessPartnerInputSchema),z.lazy(() => AccountUncheckedCreateWithoutBusinessPartnerInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => AccountCreateOrConnectWithoutBusinessPartnerInputSchema).optional(),
+  connect: z.lazy(() => AccountWhereUniqueInputSchema).optional()
+}).strict();
+
+export const PartyUncheckedCreateNestedManyWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.PartyUncheckedCreateNestedManyWithoutBusinessPartnerInput> = z.object({
+  create: z.union([ z.lazy(() => PartyCreateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyCreateWithoutBusinessPartnerInputSchema).array(),z.lazy(() => PartyUncheckedCreateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUncheckedCreateWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => PartyCreateOrConnectWithoutBusinessPartnerInputSchema),z.lazy(() => PartyCreateOrConnectWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => PartyCreateManyBusinessPartnerInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+}).strict();
+
+export const ApplicationUncheckedCreateNestedManyWithoutOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUncheckedCreateNestedManyWithoutOutletBusinessPartnerInput> = z.object({
+  create: z.union([ z.lazy(() => ApplicationCreateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateWithoutOutletBusinessPartnerInputSchema).array(),z.lazy(() => ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => ApplicationCreateOrConnectWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateOrConnectWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => ApplicationCreateManyOutletBusinessPartnerInputEnvelopeSchema).optional(),
   connect: z.union([ z.lazy(() => ApplicationWhereUniqueInputSchema),z.lazy(() => ApplicationWhereUniqueInputSchema).array() ]).optional(),
+}).strict();
+
+export const EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema: z.ZodType<Prisma.EnumBusinessPartnerTypeFieldUpdateOperationsInput> = z.object({
+  set: z.lazy(() => BusinessPartnerTypeSchema).optional()
 }).strict();
 
 export const AddressUpdateOneRequiredWithoutBusinessPartnersNestedInputSchema: z.ZodType<Prisma.AddressUpdateOneRequiredWithoutBusinessPartnersNestedInput> = z.object({
@@ -1741,32 +2319,112 @@ export const AddressUpdateOneRequiredWithoutBusinessPartnersNestedInputSchema: z
   update: z.union([ z.lazy(() => AddressUpdateWithoutBusinessPartnersInputSchema),z.lazy(() => AddressUncheckedUpdateWithoutBusinessPartnersInputSchema) ]).optional(),
 }).strict();
 
-export const ApplicationUpdateManyWithoutBusinessPartnerNestedInputSchema: z.ZodType<Prisma.ApplicationUpdateManyWithoutBusinessPartnerNestedInput> = z.object({
-  create: z.union([ z.lazy(() => ApplicationCreateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateWithoutBusinessPartnerInputSchema).array(),z.lazy(() => ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => ApplicationCreateOrConnectWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateOrConnectWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  upsert: z.union([ z.lazy(() => ApplicationUpsertWithWhereUniqueWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUpsertWithWhereUniqueWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => ApplicationCreateManyBusinessPartnerInputEnvelopeSchema).optional(),
+export const AccountUpdateOneWithoutBusinessPartnerNestedInputSchema: z.ZodType<Prisma.AccountUpdateOneWithoutBusinessPartnerNestedInput> = z.object({
+  create: z.union([ z.lazy(() => AccountCreateWithoutBusinessPartnerInputSchema),z.lazy(() => AccountUncheckedCreateWithoutBusinessPartnerInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => AccountCreateOrConnectWithoutBusinessPartnerInputSchema).optional(),
+  upsert: z.lazy(() => AccountUpsertWithoutBusinessPartnerInputSchema).optional(),
+  disconnect: z.boolean().optional(),
+  delete: z.boolean().optional(),
+  connect: z.lazy(() => AccountWhereUniqueInputSchema).optional(),
+  update: z.union([ z.lazy(() => AccountUpdateWithoutBusinessPartnerInputSchema),z.lazy(() => AccountUncheckedUpdateWithoutBusinessPartnerInputSchema) ]).optional(),
+}).strict();
+
+export const PartyUpdateManyWithoutBusinessPartnerNestedInputSchema: z.ZodType<Prisma.PartyUpdateManyWithoutBusinessPartnerNestedInput> = z.object({
+  create: z.union([ z.lazy(() => PartyCreateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyCreateWithoutBusinessPartnerInputSchema).array(),z.lazy(() => PartyUncheckedCreateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUncheckedCreateWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => PartyCreateOrConnectWithoutBusinessPartnerInputSchema),z.lazy(() => PartyCreateOrConnectWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => PartyUpsertWithWhereUniqueWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUpsertWithWhereUniqueWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => PartyCreateManyBusinessPartnerInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => PartyUpdateWithWhereUniqueWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUpdateWithWhereUniqueWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => PartyUpdateManyWithWhereWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUpdateManyWithWhereWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => PartyScalarWhereInputSchema),z.lazy(() => PartyScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
+export const ApplicationUpdateManyWithoutOutletBusinessPartnerNestedInputSchema: z.ZodType<Prisma.ApplicationUpdateManyWithoutOutletBusinessPartnerNestedInput> = z.object({
+  create: z.union([ z.lazy(() => ApplicationCreateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateWithoutOutletBusinessPartnerInputSchema).array(),z.lazy(() => ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => ApplicationCreateOrConnectWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateOrConnectWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => ApplicationUpsertWithWhereUniqueWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUpsertWithWhereUniqueWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => ApplicationCreateManyOutletBusinessPartnerInputEnvelopeSchema).optional(),
   set: z.union([ z.lazy(() => ApplicationWhereUniqueInputSchema),z.lazy(() => ApplicationWhereUniqueInputSchema).array() ]).optional(),
   disconnect: z.union([ z.lazy(() => ApplicationWhereUniqueInputSchema),z.lazy(() => ApplicationWhereUniqueInputSchema).array() ]).optional(),
   delete: z.union([ z.lazy(() => ApplicationWhereUniqueInputSchema),z.lazy(() => ApplicationWhereUniqueInputSchema).array() ]).optional(),
   connect: z.union([ z.lazy(() => ApplicationWhereUniqueInputSchema),z.lazy(() => ApplicationWhereUniqueInputSchema).array() ]).optional(),
-  update: z.union([ z.lazy(() => ApplicationUpdateWithWhereUniqueWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUpdateWithWhereUniqueWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  updateMany: z.union([ z.lazy(() => ApplicationUpdateManyWithWhereWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUpdateManyWithWhereWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => ApplicationUpdateWithWhereUniqueWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUpdateWithWhereUniqueWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => ApplicationUpdateManyWithWhereWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUpdateManyWithWhereWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
   deleteMany: z.union([ z.lazy(() => ApplicationScalarWhereInputSchema),z.lazy(() => ApplicationScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
-export const ApplicationUncheckedUpdateManyWithoutBusinessPartnerNestedInputSchema: z.ZodType<Prisma.ApplicationUncheckedUpdateManyWithoutBusinessPartnerNestedInput> = z.object({
-  create: z.union([ z.lazy(() => ApplicationCreateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateWithoutBusinessPartnerInputSchema).array(),z.lazy(() => ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => ApplicationCreateOrConnectWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateOrConnectWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  upsert: z.union([ z.lazy(() => ApplicationUpsertWithWhereUniqueWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUpsertWithWhereUniqueWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => ApplicationCreateManyBusinessPartnerInputEnvelopeSchema).optional(),
+export const AccountUncheckedUpdateOneWithoutBusinessPartnerNestedInputSchema: z.ZodType<Prisma.AccountUncheckedUpdateOneWithoutBusinessPartnerNestedInput> = z.object({
+  create: z.union([ z.lazy(() => AccountCreateWithoutBusinessPartnerInputSchema),z.lazy(() => AccountUncheckedCreateWithoutBusinessPartnerInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => AccountCreateOrConnectWithoutBusinessPartnerInputSchema).optional(),
+  upsert: z.lazy(() => AccountUpsertWithoutBusinessPartnerInputSchema).optional(),
+  disconnect: z.boolean().optional(),
+  delete: z.boolean().optional(),
+  connect: z.lazy(() => AccountWhereUniqueInputSchema).optional(),
+  update: z.union([ z.lazy(() => AccountUpdateWithoutBusinessPartnerInputSchema),z.lazy(() => AccountUncheckedUpdateWithoutBusinessPartnerInputSchema) ]).optional(),
+}).strict();
+
+export const PartyUncheckedUpdateManyWithoutBusinessPartnerNestedInputSchema: z.ZodType<Prisma.PartyUncheckedUpdateManyWithoutBusinessPartnerNestedInput> = z.object({
+  create: z.union([ z.lazy(() => PartyCreateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyCreateWithoutBusinessPartnerInputSchema).array(),z.lazy(() => PartyUncheckedCreateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUncheckedCreateWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => PartyCreateOrConnectWithoutBusinessPartnerInputSchema),z.lazy(() => PartyCreateOrConnectWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => PartyUpsertWithWhereUniqueWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUpsertWithWhereUniqueWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => PartyCreateManyBusinessPartnerInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => PartyWhereUniqueInputSchema),z.lazy(() => PartyWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => PartyUpdateWithWhereUniqueWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUpdateWithWhereUniqueWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => PartyUpdateManyWithWhereWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUpdateManyWithWhereWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => PartyScalarWhereInputSchema),z.lazy(() => PartyScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
+export const ApplicationUncheckedUpdateManyWithoutOutletBusinessPartnerNestedInputSchema: z.ZodType<Prisma.ApplicationUncheckedUpdateManyWithoutOutletBusinessPartnerNestedInput> = z.object({
+  create: z.union([ z.lazy(() => ApplicationCreateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateWithoutOutletBusinessPartnerInputSchema).array(),z.lazy(() => ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => ApplicationCreateOrConnectWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateOrConnectWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => ApplicationUpsertWithWhereUniqueWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUpsertWithWhereUniqueWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => ApplicationCreateManyOutletBusinessPartnerInputEnvelopeSchema).optional(),
   set: z.union([ z.lazy(() => ApplicationWhereUniqueInputSchema),z.lazy(() => ApplicationWhereUniqueInputSchema).array() ]).optional(),
   disconnect: z.union([ z.lazy(() => ApplicationWhereUniqueInputSchema),z.lazy(() => ApplicationWhereUniqueInputSchema).array() ]).optional(),
   delete: z.union([ z.lazy(() => ApplicationWhereUniqueInputSchema),z.lazy(() => ApplicationWhereUniqueInputSchema).array() ]).optional(),
   connect: z.union([ z.lazy(() => ApplicationWhereUniqueInputSchema),z.lazy(() => ApplicationWhereUniqueInputSchema).array() ]).optional(),
-  update: z.union([ z.lazy(() => ApplicationUpdateWithWhereUniqueWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUpdateWithWhereUniqueWithoutBusinessPartnerInputSchema).array() ]).optional(),
-  updateMany: z.union([ z.lazy(() => ApplicationUpdateManyWithWhereWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUpdateManyWithWhereWithoutBusinessPartnerInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => ApplicationUpdateWithWhereUniqueWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUpdateWithWhereUniqueWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => ApplicationUpdateManyWithWhereWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUpdateManyWithWhereWithoutOutletBusinessPartnerInputSchema).array() ]).optional(),
   deleteMany: z.union([ z.lazy(() => ApplicationScalarWhereInputSchema),z.lazy(() => ApplicationScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
+export const BusinessPartnerCreateNestedOneWithoutPartiesInputSchema: z.ZodType<Prisma.BusinessPartnerCreateNestedOneWithoutPartiesInput> = z.object({
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutPartiesInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutPartiesInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => BusinessPartnerCreateOrConnectWithoutPartiesInputSchema).optional(),
+  connect: z.lazy(() => BusinessPartnerWhereUniqueInputSchema).optional()
+}).strict();
+
+export const ApplicationCreateNestedOneWithoutPartiesInputSchema: z.ZodType<Prisma.ApplicationCreateNestedOneWithoutPartiesInput> = z.object({
+  create: z.union([ z.lazy(() => ApplicationCreateWithoutPartiesInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutPartiesInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => ApplicationCreateOrConnectWithoutPartiesInputSchema).optional(),
+  connect: z.lazy(() => ApplicationWhereUniqueInputSchema).optional()
+}).strict();
+
+export const EnumPartyTypeFieldUpdateOperationsInputSchema: z.ZodType<Prisma.EnumPartyTypeFieldUpdateOperationsInput> = z.object({
+  set: z.lazy(() => PartyTypeSchema).optional()
+}).strict();
+
+export const BusinessPartnerUpdateOneRequiredWithoutPartiesNestedInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateOneRequiredWithoutPartiesNestedInput> = z.object({
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutPartiesInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutPartiesInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => BusinessPartnerCreateOrConnectWithoutPartiesInputSchema).optional(),
+  upsert: z.lazy(() => BusinessPartnerUpsertWithoutPartiesInputSchema).optional(),
+  connect: z.lazy(() => BusinessPartnerWhereUniqueInputSchema).optional(),
+  update: z.union([ z.lazy(() => BusinessPartnerUpdateWithoutPartiesInputSchema),z.lazy(() => BusinessPartnerUncheckedUpdateWithoutPartiesInputSchema) ]).optional(),
+}).strict();
+
+export const ApplicationUpdateOneRequiredWithoutPartiesNestedInputSchema: z.ZodType<Prisma.ApplicationUpdateOneRequiredWithoutPartiesNestedInput> = z.object({
+  create: z.union([ z.lazy(() => ApplicationCreateWithoutPartiesInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutPartiesInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => ApplicationCreateOrConnectWithoutPartiesInputSchema).optional(),
+  upsert: z.lazy(() => ApplicationUpsertWithoutPartiesInputSchema).optional(),
+  connect: z.lazy(() => ApplicationWhereUniqueInputSchema).optional(),
+  update: z.union([ z.lazy(() => ApplicationUpdateWithoutPartiesInputSchema),z.lazy(() => ApplicationUncheckedUpdateWithoutPartiesInputSchema) ]).optional(),
 }).strict();
 
 export const BusinessPartnerCreateNestedManyWithoutAddressInputSchema: z.ZodType<Prisma.BusinessPartnerCreateNestedManyWithoutAddressInput> = z.object({
@@ -1809,6 +2467,20 @@ export const BusinessPartnerUncheckedUpdateManyWithoutAddressNestedInputSchema: 
   update: z.union([ z.lazy(() => BusinessPartnerUpdateWithWhereUniqueWithoutAddressInputSchema),z.lazy(() => BusinessPartnerUpdateWithWhereUniqueWithoutAddressInputSchema).array() ]).optional(),
   updateMany: z.union([ z.lazy(() => BusinessPartnerUpdateManyWithWhereWithoutAddressInputSchema),z.lazy(() => BusinessPartnerUpdateManyWithWhereWithoutAddressInputSchema).array() ]).optional(),
   deleteMany: z.union([ z.lazy(() => BusinessPartnerScalarWhereInputSchema),z.lazy(() => BusinessPartnerScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
+export const BusinessPartnerCreateNestedOneWithoutAccountInputSchema: z.ZodType<Prisma.BusinessPartnerCreateNestedOneWithoutAccountInput> = z.object({
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutAccountInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutAccountInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => BusinessPartnerCreateOrConnectWithoutAccountInputSchema).optional(),
+  connect: z.lazy(() => BusinessPartnerWhereUniqueInputSchema).optional()
+}).strict();
+
+export const BusinessPartnerUpdateOneRequiredWithoutAccountNestedInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateOneRequiredWithoutAccountNestedInput> = z.object({
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutAccountInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutAccountInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => BusinessPartnerCreateOrConnectWithoutAccountInputSchema).optional(),
+  upsert: z.lazy(() => BusinessPartnerUpsertWithoutAccountInputSchema).optional(),
+  connect: z.lazy(() => BusinessPartnerWhereUniqueInputSchema).optional(),
+  update: z.union([ z.lazy(() => BusinessPartnerUpdateWithoutAccountInputSchema),z.lazy(() => BusinessPartnerUncheckedUpdateWithoutAccountInputSchema) ]).optional(),
 }).strict();
 
 export const NestedStringFilterSchema: z.ZodType<Prisma.NestedStringFilter> = z.object({
@@ -2016,6 +2688,17 @@ export const NestedEnumChannelFilterSchema: z.ZodType<Prisma.NestedEnumChannelFi
   not: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => NestedEnumChannelFilterSchema) ]).optional(),
 }).strict();
 
+export const NestedDateTimeNullableFilterSchema: z.ZodType<Prisma.NestedDateTimeNullableFilter> = z.object({
+  equals: z.coerce.date().optional().nullable(),
+  in: z.union([ z.coerce.date().array(),z.coerce.date() ]).optional().nullable(),
+  notIn: z.union([ z.coerce.date().array(),z.coerce.date() ]).optional().nullable(),
+  lt: z.coerce.date().optional(),
+  lte: z.coerce.date().optional(),
+  gt: z.coerce.date().optional(),
+  gte: z.coerce.date().optional(),
+  not: z.union([ z.coerce.date(),z.lazy(() => NestedDateTimeNullableFilterSchema) ]).optional().nullable(),
+}).strict();
+
 export const NestedFloatWithAggregatesFilterSchema: z.ZodType<Prisma.NestedFloatWithAggregatesFilter> = z.object({
   equals: z.number().optional(),
   in: z.union([ z.number().array(),z.number() ]).optional(),
@@ -2080,6 +2763,54 @@ export const NestedEnumChannelWithAggregatesFilterSchema: z.ZodType<Prisma.Neste
   _count: z.lazy(() => NestedIntFilterSchema).optional(),
   _min: z.lazy(() => NestedEnumChannelFilterSchema).optional(),
   _max: z.lazy(() => NestedEnumChannelFilterSchema).optional()
+}).strict();
+
+export const NestedDateTimeNullableWithAggregatesFilterSchema: z.ZodType<Prisma.NestedDateTimeNullableWithAggregatesFilter> = z.object({
+  equals: z.coerce.date().optional().nullable(),
+  in: z.union([ z.coerce.date().array(),z.coerce.date() ]).optional().nullable(),
+  notIn: z.union([ z.coerce.date().array(),z.coerce.date() ]).optional().nullable(),
+  lt: z.coerce.date().optional(),
+  lte: z.coerce.date().optional(),
+  gt: z.coerce.date().optional(),
+  gte: z.coerce.date().optional(),
+  not: z.union([ z.coerce.date(),z.lazy(() => NestedDateTimeNullableWithAggregatesFilterSchema) ]).optional().nullable(),
+  _count: z.lazy(() => NestedIntNullableFilterSchema).optional(),
+  _min: z.lazy(() => NestedDateTimeNullableFilterSchema).optional(),
+  _max: z.lazy(() => NestedDateTimeNullableFilterSchema).optional()
+}).strict();
+
+export const NestedEnumBusinessPartnerTypeFilterSchema: z.ZodType<Prisma.NestedEnumBusinessPartnerTypeFilter> = z.object({
+  equals: z.lazy(() => BusinessPartnerTypeSchema).optional(),
+  in: z.union([ z.lazy(() => BusinessPartnerTypeSchema).array(),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
+  notIn: z.union([ z.lazy(() => BusinessPartnerTypeSchema).array(),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
+  not: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => NestedEnumBusinessPartnerTypeFilterSchema) ]).optional(),
+}).strict();
+
+export const NestedEnumBusinessPartnerTypeWithAggregatesFilterSchema: z.ZodType<Prisma.NestedEnumBusinessPartnerTypeWithAggregatesFilter> = z.object({
+  equals: z.lazy(() => BusinessPartnerTypeSchema).optional(),
+  in: z.union([ z.lazy(() => BusinessPartnerTypeSchema).array(),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
+  notIn: z.union([ z.lazy(() => BusinessPartnerTypeSchema).array(),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
+  not: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => NestedEnumBusinessPartnerTypeWithAggregatesFilterSchema) ]).optional(),
+  _count: z.lazy(() => NestedIntFilterSchema).optional(),
+  _min: z.lazy(() => NestedEnumBusinessPartnerTypeFilterSchema).optional(),
+  _max: z.lazy(() => NestedEnumBusinessPartnerTypeFilterSchema).optional()
+}).strict();
+
+export const NestedEnumPartyTypeFilterSchema: z.ZodType<Prisma.NestedEnumPartyTypeFilter> = z.object({
+  equals: z.lazy(() => PartyTypeSchema).optional(),
+  in: z.union([ z.lazy(() => PartyTypeSchema).array(),z.lazy(() => PartyTypeSchema) ]).optional(),
+  notIn: z.union([ z.lazy(() => PartyTypeSchema).array(),z.lazy(() => PartyTypeSchema) ]).optional(),
+  not: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => NestedEnumPartyTypeFilterSchema) ]).optional(),
+}).strict();
+
+export const NestedEnumPartyTypeWithAggregatesFilterSchema: z.ZodType<Prisma.NestedEnumPartyTypeWithAggregatesFilter> = z.object({
+  equals: z.lazy(() => PartyTypeSchema).optional(),
+  in: z.union([ z.lazy(() => PartyTypeSchema).array(),z.lazy(() => PartyTypeSchema) ]).optional(),
+  notIn: z.union([ z.lazy(() => PartyTypeSchema).array(),z.lazy(() => PartyTypeSchema) ]).optional(),
+  not: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => NestedEnumPartyTypeWithAggregatesFilterSchema) ]).optional(),
+  _count: z.lazy(() => NestedIntFilterSchema).optional(),
+  _min: z.lazy(() => NestedEnumPartyTypeFilterSchema).optional(),
+  _max: z.lazy(() => NestedEnumPartyTypeFilterSchema).optional()
 }).strict();
 
 export const MessageCreateWithoutChatInputSchema: z.ZodType<Prisma.MessageCreateWithoutChatInput> = z.object({
@@ -2302,51 +3033,87 @@ export const MessageUpdateManyWithWhereWithoutResponseToInputSchema: z.ZodType<P
   data: z.union([ z.lazy(() => MessageUpdateManyMutationInputSchema),z.lazy(() => MessageUncheckedUpdateManyWithoutResponsesInputSchema) ]),
 }).strict();
 
-export const BusinessPartnerCreateWithoutApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerCreateWithoutApplicationsInput> = z.object({
+export const BusinessPartnerCreateWithoutOutletApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerCreateWithoutOutletApplicationsInput> = z.object({
   id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
   phone: z.string(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
-  address: z.lazy(() => AddressCreateNestedOneWithoutBusinessPartnersInputSchema)
+  address: z.lazy(() => AddressCreateNestedOneWithoutBusinessPartnersInputSchema),
+  account: z.lazy(() => AccountCreateNestedOneWithoutBusinessPartnerInputSchema).optional(),
+  parties: z.lazy(() => PartyCreateNestedManyWithoutBusinessPartnerInputSchema).optional()
 }).strict();
 
-export const BusinessPartnerUncheckedCreateWithoutApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedCreateWithoutApplicationsInput> = z.object({
+export const BusinessPartnerUncheckedCreateWithoutOutletApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedCreateWithoutOutletApplicationsInput> = z.object({
   id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
   phone: z.string(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
-  addressId: z.string()
+  addressId: z.string(),
+  account: z.lazy(() => AccountUncheckedCreateNestedOneWithoutBusinessPartnerInputSchema).optional(),
+  parties: z.lazy(() => PartyUncheckedCreateNestedManyWithoutBusinessPartnerInputSchema).optional()
 }).strict();
 
-export const BusinessPartnerCreateOrConnectWithoutApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerCreateOrConnectWithoutApplicationsInput> = z.object({
+export const BusinessPartnerCreateOrConnectWithoutOutletApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerCreateOrConnectWithoutOutletApplicationsInput> = z.object({
   where: z.lazy(() => BusinessPartnerWhereUniqueInputSchema),
-  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutApplicationsInputSchema) ]),
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutOutletApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutOutletApplicationsInputSchema) ]),
 }).strict();
 
-export const BusinessPartnerUpsertWithoutApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerUpsertWithoutApplicationsInput> = z.object({
-  update: z.union([ z.lazy(() => BusinessPartnerUpdateWithoutApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedUpdateWithoutApplicationsInputSchema) ]),
-  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutApplicationsInputSchema) ]),
+export const PartyCreateWithoutApplicationInputSchema: z.ZodType<Prisma.PartyCreateWithoutApplicationInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => PartyTypeSchema),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  businessPartner: z.lazy(() => BusinessPartnerCreateNestedOneWithoutPartiesInputSchema)
 }).strict();
 
-export const BusinessPartnerUpdateWithoutApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateWithoutApplicationsInput> = z.object({
+export const PartyUncheckedCreateWithoutApplicationInputSchema: z.ZodType<Prisma.PartyUncheckedCreateWithoutApplicationInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => PartyTypeSchema),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  businessPartnerId: z.string()
+}).strict();
+
+export const PartyCreateOrConnectWithoutApplicationInputSchema: z.ZodType<Prisma.PartyCreateOrConnectWithoutApplicationInput> = z.object({
+  where: z.lazy(() => PartyWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => PartyCreateWithoutApplicationInputSchema),z.lazy(() => PartyUncheckedCreateWithoutApplicationInputSchema) ]),
+}).strict();
+
+export const PartyCreateManyApplicationInputEnvelopeSchema: z.ZodType<Prisma.PartyCreateManyApplicationInputEnvelope> = z.object({
+  data: z.union([ z.lazy(() => PartyCreateManyApplicationInputSchema),z.lazy(() => PartyCreateManyApplicationInputSchema).array() ]),
+  skipDuplicates: z.boolean().optional()
+}).strict();
+
+export const BusinessPartnerUpsertWithoutOutletApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerUpsertWithoutOutletApplicationsInput> = z.object({
+  update: z.union([ z.lazy(() => BusinessPartnerUpdateWithoutOutletApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedUpdateWithoutOutletApplicationsInputSchema) ]),
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutOutletApplicationsInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutOutletApplicationsInputSchema) ]),
+}).strict();
+
+export const BusinessPartnerUpdateWithoutOutletApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateWithoutOutletApplicationsInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
   firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   phone: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  address: z.lazy(() => AddressUpdateOneRequiredWithoutBusinessPartnersNestedInputSchema).optional()
+  address: z.lazy(() => AddressUpdateOneRequiredWithoutBusinessPartnersNestedInputSchema).optional(),
+  account: z.lazy(() => AccountUpdateOneWithoutBusinessPartnerNestedInputSchema).optional(),
+  parties: z.lazy(() => PartyUpdateManyWithoutBusinessPartnerNestedInputSchema).optional()
 }).strict();
 
-export const BusinessPartnerUncheckedUpdateWithoutApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedUpdateWithoutApplicationsInput> = z.object({
+export const BusinessPartnerUncheckedUpdateWithoutOutletApplicationsInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedUpdateWithoutOutletApplicationsInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
   firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
@@ -2354,6 +3121,36 @@ export const BusinessPartnerUncheckedUpdateWithoutApplicationsInputSchema: z.Zod
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   addressId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  account: z.lazy(() => AccountUncheckedUpdateOneWithoutBusinessPartnerNestedInputSchema).optional(),
+  parties: z.lazy(() => PartyUncheckedUpdateManyWithoutBusinessPartnerNestedInputSchema).optional()
+}).strict();
+
+export const PartyUpsertWithWhereUniqueWithoutApplicationInputSchema: z.ZodType<Prisma.PartyUpsertWithWhereUniqueWithoutApplicationInput> = z.object({
+  where: z.lazy(() => PartyWhereUniqueInputSchema),
+  update: z.union([ z.lazy(() => PartyUpdateWithoutApplicationInputSchema),z.lazy(() => PartyUncheckedUpdateWithoutApplicationInputSchema) ]),
+  create: z.union([ z.lazy(() => PartyCreateWithoutApplicationInputSchema),z.lazy(() => PartyUncheckedCreateWithoutApplicationInputSchema) ]),
+}).strict();
+
+export const PartyUpdateWithWhereUniqueWithoutApplicationInputSchema: z.ZodType<Prisma.PartyUpdateWithWhereUniqueWithoutApplicationInput> = z.object({
+  where: z.lazy(() => PartyWhereUniqueInputSchema),
+  data: z.union([ z.lazy(() => PartyUpdateWithoutApplicationInputSchema),z.lazy(() => PartyUncheckedUpdateWithoutApplicationInputSchema) ]),
+}).strict();
+
+export const PartyUpdateManyWithWhereWithoutApplicationInputSchema: z.ZodType<Prisma.PartyUpdateManyWithWhereWithoutApplicationInput> = z.object({
+  where: z.lazy(() => PartyScalarWhereInputSchema),
+  data: z.union([ z.lazy(() => PartyUpdateManyMutationInputSchema),z.lazy(() => PartyUncheckedUpdateManyWithoutPartiesInputSchema) ]),
+}).strict();
+
+export const PartyScalarWhereInputSchema: z.ZodType<Prisma.PartyScalarWhereInput> = z.object({
+  AND: z.union([ z.lazy(() => PartyScalarWhereInputSchema),z.lazy(() => PartyScalarWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => PartyScalarWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => PartyScalarWhereInputSchema),z.lazy(() => PartyScalarWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  type: z.union([ z.lazy(() => EnumPartyTypeFilterSchema),z.lazy(() => PartyTypeSchema) ]).optional(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  businessPartnerId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  applicationId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
 }).strict();
 
 export const AddressCreateWithoutBusinessPartnersInputSchema: z.ZodType<Prisma.AddressCreateWithoutBusinessPartnersInput> = z.object({
@@ -2381,7 +3178,52 @@ export const AddressCreateOrConnectWithoutBusinessPartnersInputSchema: z.ZodType
   create: z.union([ z.lazy(() => AddressCreateWithoutBusinessPartnersInputSchema),z.lazy(() => AddressUncheckedCreateWithoutBusinessPartnersInputSchema) ]),
 }).strict();
 
-export const ApplicationCreateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationCreateWithoutBusinessPartnerInput> = z.object({
+export const AccountCreateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.AccountCreateWithoutBusinessPartnerInput> = z.object({
+  id: z.string().cuid().optional(),
+  username: z.string(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional()
+}).strict();
+
+export const AccountUncheckedCreateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.AccountUncheckedCreateWithoutBusinessPartnerInput> = z.object({
+  id: z.string().cuid().optional(),
+  username: z.string(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional()
+}).strict();
+
+export const AccountCreateOrConnectWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.AccountCreateOrConnectWithoutBusinessPartnerInput> = z.object({
+  where: z.lazy(() => AccountWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => AccountCreateWithoutBusinessPartnerInputSchema),z.lazy(() => AccountUncheckedCreateWithoutBusinessPartnerInputSchema) ]),
+}).strict();
+
+export const PartyCreateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.PartyCreateWithoutBusinessPartnerInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => PartyTypeSchema),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  application: z.lazy(() => ApplicationCreateNestedOneWithoutPartiesInputSchema)
+}).strict();
+
+export const PartyUncheckedCreateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.PartyUncheckedCreateWithoutBusinessPartnerInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => PartyTypeSchema),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  applicationId: z.string()
+}).strict();
+
+export const PartyCreateOrConnectWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.PartyCreateOrConnectWithoutBusinessPartnerInput> = z.object({
+  where: z.lazy(() => PartyWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => PartyCreateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUncheckedCreateWithoutBusinessPartnerInputSchema) ]),
+}).strict();
+
+export const PartyCreateManyBusinessPartnerInputEnvelopeSchema: z.ZodType<Prisma.PartyCreateManyBusinessPartnerInputEnvelope> = z.object({
+  data: z.union([ z.lazy(() => PartyCreateManyBusinessPartnerInputSchema),z.lazy(() => PartyCreateManyBusinessPartnerInputSchema).array() ]),
+  skipDuplicates: z.boolean().optional()
+}).strict();
+
+export const ApplicationCreateWithoutOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationCreateWithoutOutletBusinessPartnerInput> = z.object({
   id: z.string().cuid().optional(),
   amount: z.number(),
   language: z.lazy(() => LanguageSchema).optional(),
@@ -2389,11 +3231,13 @@ export const ApplicationCreateWithoutBusinessPartnerInputSchema: z.ZodType<Prism
   productLine: z.lazy(() => ProductLineSchema).optional(),
   businessLine: z.lazy(() => BusinessLineSchema).optional(),
   channel: z.lazy(() => ChannelSchema).optional(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date()
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  completedAt: z.coerce.date().optional().nullable(),
+  parties: z.lazy(() => PartyCreateNestedManyWithoutApplicationInputSchema).optional()
 }).strict();
 
-export const ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUncheckedCreateWithoutBusinessPartnerInput> = z.object({
+export const ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUncheckedCreateWithoutOutletBusinessPartnerInput> = z.object({
   id: z.string().cuid().optional(),
   amount: z.number(),
   language: z.lazy(() => LanguageSchema).optional(),
@@ -2401,17 +3245,19 @@ export const ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema: z.ZodT
   productLine: z.lazy(() => ProductLineSchema).optional(),
   businessLine: z.lazy(() => BusinessLineSchema).optional(),
   channel: z.lazy(() => ChannelSchema).optional(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date()
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  completedAt: z.coerce.date().optional().nullable(),
+  parties: z.lazy(() => PartyUncheckedCreateNestedManyWithoutApplicationInputSchema).optional()
 }).strict();
 
-export const ApplicationCreateOrConnectWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationCreateOrConnectWithoutBusinessPartnerInput> = z.object({
+export const ApplicationCreateOrConnectWithoutOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationCreateOrConnectWithoutOutletBusinessPartnerInput> = z.object({
   where: z.lazy(() => ApplicationWhereUniqueInputSchema),
-  create: z.union([ z.lazy(() => ApplicationCreateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema) ]),
+  create: z.union([ z.lazy(() => ApplicationCreateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema) ]),
 }).strict();
 
-export const ApplicationCreateManyBusinessPartnerInputEnvelopeSchema: z.ZodType<Prisma.ApplicationCreateManyBusinessPartnerInputEnvelope> = z.object({
-  data: z.union([ z.lazy(() => ApplicationCreateManyBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateManyBusinessPartnerInputSchema).array() ]),
+export const ApplicationCreateManyOutletBusinessPartnerInputEnvelopeSchema: z.ZodType<Prisma.ApplicationCreateManyOutletBusinessPartnerInputEnvelope> = z.object({
+  data: z.union([ z.lazy(() => ApplicationCreateManyOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationCreateManyOutletBusinessPartnerInputSchema).array() ]),
   skipDuplicates: z.boolean().optional()
 }).strict();
 
@@ -2440,20 +3286,55 @@ export const AddressUncheckedUpdateWithoutBusinessPartnersInputSchema: z.ZodType
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
-export const ApplicationUpsertWithWhereUniqueWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUpsertWithWhereUniqueWithoutBusinessPartnerInput> = z.object({
-  where: z.lazy(() => ApplicationWhereUniqueInputSchema),
-  update: z.union([ z.lazy(() => ApplicationUpdateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedUpdateWithoutBusinessPartnerInputSchema) ]),
-  create: z.union([ z.lazy(() => ApplicationCreateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutBusinessPartnerInputSchema) ]),
+export const AccountUpsertWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.AccountUpsertWithoutBusinessPartnerInput> = z.object({
+  update: z.union([ z.lazy(() => AccountUpdateWithoutBusinessPartnerInputSchema),z.lazy(() => AccountUncheckedUpdateWithoutBusinessPartnerInputSchema) ]),
+  create: z.union([ z.lazy(() => AccountCreateWithoutBusinessPartnerInputSchema),z.lazy(() => AccountUncheckedCreateWithoutBusinessPartnerInputSchema) ]),
 }).strict();
 
-export const ApplicationUpdateWithWhereUniqueWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUpdateWithWhereUniqueWithoutBusinessPartnerInput> = z.object({
-  where: z.lazy(() => ApplicationWhereUniqueInputSchema),
-  data: z.union([ z.lazy(() => ApplicationUpdateWithoutBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedUpdateWithoutBusinessPartnerInputSchema) ]),
+export const AccountUpdateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.AccountUpdateWithoutBusinessPartnerInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  username: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
-export const ApplicationUpdateManyWithWhereWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUpdateManyWithWhereWithoutBusinessPartnerInput> = z.object({
+export const AccountUncheckedUpdateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.AccountUncheckedUpdateWithoutBusinessPartnerInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  username: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const PartyUpsertWithWhereUniqueWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.PartyUpsertWithWhereUniqueWithoutBusinessPartnerInput> = z.object({
+  where: z.lazy(() => PartyWhereUniqueInputSchema),
+  update: z.union([ z.lazy(() => PartyUpdateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUncheckedUpdateWithoutBusinessPartnerInputSchema) ]),
+  create: z.union([ z.lazy(() => PartyCreateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUncheckedCreateWithoutBusinessPartnerInputSchema) ]),
+}).strict();
+
+export const PartyUpdateWithWhereUniqueWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.PartyUpdateWithWhereUniqueWithoutBusinessPartnerInput> = z.object({
+  where: z.lazy(() => PartyWhereUniqueInputSchema),
+  data: z.union([ z.lazy(() => PartyUpdateWithoutBusinessPartnerInputSchema),z.lazy(() => PartyUncheckedUpdateWithoutBusinessPartnerInputSchema) ]),
+}).strict();
+
+export const PartyUpdateManyWithWhereWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.PartyUpdateManyWithWhereWithoutBusinessPartnerInput> = z.object({
+  where: z.lazy(() => PartyScalarWhereInputSchema),
+  data: z.union([ z.lazy(() => PartyUpdateManyMutationInputSchema),z.lazy(() => PartyUncheckedUpdateManyWithoutPartiesInputSchema) ]),
+}).strict();
+
+export const ApplicationUpsertWithWhereUniqueWithoutOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUpsertWithWhereUniqueWithoutOutletBusinessPartnerInput> = z.object({
+  where: z.lazy(() => ApplicationWhereUniqueInputSchema),
+  update: z.union([ z.lazy(() => ApplicationUpdateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedUpdateWithoutOutletBusinessPartnerInputSchema) ]),
+  create: z.union([ z.lazy(() => ApplicationCreateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutOutletBusinessPartnerInputSchema) ]),
+}).strict();
+
+export const ApplicationUpdateWithWhereUniqueWithoutOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUpdateWithWhereUniqueWithoutOutletBusinessPartnerInput> = z.object({
+  where: z.lazy(() => ApplicationWhereUniqueInputSchema),
+  data: z.union([ z.lazy(() => ApplicationUpdateWithoutOutletBusinessPartnerInputSchema),z.lazy(() => ApplicationUncheckedUpdateWithoutOutletBusinessPartnerInputSchema) ]),
+}).strict();
+
+export const ApplicationUpdateManyWithWhereWithoutOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUpdateManyWithWhereWithoutOutletBusinessPartnerInput> = z.object({
   where: z.lazy(() => ApplicationScalarWhereInputSchema),
-  data: z.union([ z.lazy(() => ApplicationUpdateManyMutationInputSchema),z.lazy(() => ApplicationUncheckedUpdateManyWithoutApplicationsInputSchema) ]),
+  data: z.union([ z.lazy(() => ApplicationUpdateManyMutationInputSchema),z.lazy(() => ApplicationUncheckedUpdateManyWithoutOutletApplicationsInputSchema) ]),
 }).strict();
 
 export const ApplicationScalarWhereInputSchema: z.ZodType<Prisma.ApplicationScalarWhereInput> = z.object({
@@ -2469,29 +3350,168 @@ export const ApplicationScalarWhereInputSchema: z.ZodType<Prisma.ApplicationScal
   channel: z.union([ z.lazy(() => EnumChannelFilterSchema),z.lazy(() => ChannelSchema) ]).optional(),
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
-  businessPartnerId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  completedAt: z.union([ z.lazy(() => DateTimeNullableFilterSchema),z.coerce.date() ]).optional().nullable(),
+  outletBusinessPartnerId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+}).strict();
+
+export const BusinessPartnerCreateWithoutPartiesInputSchema: z.ZodType<Prisma.BusinessPartnerCreateWithoutPartiesInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  phone: z.string(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  address: z.lazy(() => AddressCreateNestedOneWithoutBusinessPartnersInputSchema),
+  account: z.lazy(() => AccountCreateNestedOneWithoutBusinessPartnerInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationCreateNestedManyWithoutOutletBusinessPartnerInputSchema).optional()
+}).strict();
+
+export const BusinessPartnerUncheckedCreateWithoutPartiesInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedCreateWithoutPartiesInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  phone: z.string(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  addressId: z.string(),
+  account: z.lazy(() => AccountUncheckedCreateNestedOneWithoutBusinessPartnerInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUncheckedCreateNestedManyWithoutOutletBusinessPartnerInputSchema).optional()
+}).strict();
+
+export const BusinessPartnerCreateOrConnectWithoutPartiesInputSchema: z.ZodType<Prisma.BusinessPartnerCreateOrConnectWithoutPartiesInput> = z.object({
+  where: z.lazy(() => BusinessPartnerWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutPartiesInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutPartiesInputSchema) ]),
+}).strict();
+
+export const ApplicationCreateWithoutPartiesInputSchema: z.ZodType<Prisma.ApplicationCreateWithoutPartiesInput> = z.object({
+  id: z.string().cuid().optional(),
+  amount: z.number(),
+  language: z.lazy(() => LanguageSchema).optional(),
+  status: z.lazy(() => ApplicationStatusSchema).optional(),
+  productLine: z.lazy(() => ProductLineSchema).optional(),
+  businessLine: z.lazy(() => BusinessLineSchema).optional(),
+  channel: z.lazy(() => ChannelSchema).optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  completedAt: z.coerce.date().optional().nullable(),
+  outletBusinessPartner: z.lazy(() => BusinessPartnerCreateNestedOneWithoutOutletApplicationsInputSchema)
+}).strict();
+
+export const ApplicationUncheckedCreateWithoutPartiesInputSchema: z.ZodType<Prisma.ApplicationUncheckedCreateWithoutPartiesInput> = z.object({
+  id: z.string().cuid().optional(),
+  amount: z.number(),
+  language: z.lazy(() => LanguageSchema).optional(),
+  status: z.lazy(() => ApplicationStatusSchema).optional(),
+  productLine: z.lazy(() => ProductLineSchema).optional(),
+  businessLine: z.lazy(() => BusinessLineSchema).optional(),
+  channel: z.lazy(() => ChannelSchema).optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  completedAt: z.coerce.date().optional().nullable(),
+  outletBusinessPartnerId: z.string()
+}).strict();
+
+export const ApplicationCreateOrConnectWithoutPartiesInputSchema: z.ZodType<Prisma.ApplicationCreateOrConnectWithoutPartiesInput> = z.object({
+  where: z.lazy(() => ApplicationWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => ApplicationCreateWithoutPartiesInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutPartiesInputSchema) ]),
+}).strict();
+
+export const BusinessPartnerUpsertWithoutPartiesInputSchema: z.ZodType<Prisma.BusinessPartnerUpsertWithoutPartiesInput> = z.object({
+  update: z.union([ z.lazy(() => BusinessPartnerUpdateWithoutPartiesInputSchema),z.lazy(() => BusinessPartnerUncheckedUpdateWithoutPartiesInputSchema) ]),
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutPartiesInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutPartiesInputSchema) ]),
+}).strict();
+
+export const BusinessPartnerUpdateWithoutPartiesInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateWithoutPartiesInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  phone: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  address: z.lazy(() => AddressUpdateOneRequiredWithoutBusinessPartnersNestedInputSchema).optional(),
+  account: z.lazy(() => AccountUpdateOneWithoutBusinessPartnerNestedInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUpdateManyWithoutOutletBusinessPartnerNestedInputSchema).optional()
+}).strict();
+
+export const BusinessPartnerUncheckedUpdateWithoutPartiesInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedUpdateWithoutPartiesInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  phone: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  addressId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  account: z.lazy(() => AccountUncheckedUpdateOneWithoutBusinessPartnerNestedInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUncheckedUpdateManyWithoutOutletBusinessPartnerNestedInputSchema).optional()
+}).strict();
+
+export const ApplicationUpsertWithoutPartiesInputSchema: z.ZodType<Prisma.ApplicationUpsertWithoutPartiesInput> = z.object({
+  update: z.union([ z.lazy(() => ApplicationUpdateWithoutPartiesInputSchema),z.lazy(() => ApplicationUncheckedUpdateWithoutPartiesInputSchema) ]),
+  create: z.union([ z.lazy(() => ApplicationCreateWithoutPartiesInputSchema),z.lazy(() => ApplicationUncheckedCreateWithoutPartiesInputSchema) ]),
+}).strict();
+
+export const ApplicationUpdateWithoutPartiesInputSchema: z.ZodType<Prisma.ApplicationUpdateWithoutPartiesInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  amount: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  language: z.union([ z.lazy(() => LanguageSchema),z.lazy(() => EnumLanguageFieldUpdateOperationsInputSchema) ]).optional(),
+  status: z.union([ z.lazy(() => ApplicationStatusSchema),z.lazy(() => EnumApplicationStatusFieldUpdateOperationsInputSchema) ]).optional(),
+  productLine: z.union([ z.lazy(() => ProductLineSchema),z.lazy(() => EnumProductLineFieldUpdateOperationsInputSchema) ]).optional(),
+  businessLine: z.union([ z.lazy(() => BusinessLineSchema),z.lazy(() => EnumBusinessLineFieldUpdateOperationsInputSchema) ]).optional(),
+  channel: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => EnumChannelFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  completedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  outletBusinessPartner: z.lazy(() => BusinessPartnerUpdateOneRequiredWithoutOutletApplicationsNestedInputSchema).optional()
+}).strict();
+
+export const ApplicationUncheckedUpdateWithoutPartiesInputSchema: z.ZodType<Prisma.ApplicationUncheckedUpdateWithoutPartiesInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  amount: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  language: z.union([ z.lazy(() => LanguageSchema),z.lazy(() => EnumLanguageFieldUpdateOperationsInputSchema) ]).optional(),
+  status: z.union([ z.lazy(() => ApplicationStatusSchema),z.lazy(() => EnumApplicationStatusFieldUpdateOperationsInputSchema) ]).optional(),
+  productLine: z.union([ z.lazy(() => ProductLineSchema),z.lazy(() => EnumProductLineFieldUpdateOperationsInputSchema) ]).optional(),
+  businessLine: z.union([ z.lazy(() => BusinessLineSchema),z.lazy(() => EnumBusinessLineFieldUpdateOperationsInputSchema) ]).optional(),
+  channel: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => EnumChannelFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  completedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  outletBusinessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const BusinessPartnerCreateWithoutAddressInputSchema: z.ZodType<Prisma.BusinessPartnerCreateWithoutAddressInput> = z.object({
   id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
   phone: z.string(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
-  applications: z.lazy(() => ApplicationCreateNestedManyWithoutBusinessPartnerInputSchema).optional()
+  account: z.lazy(() => AccountCreateNestedOneWithoutBusinessPartnerInputSchema).optional(),
+  parties: z.lazy(() => PartyCreateNestedManyWithoutBusinessPartnerInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationCreateNestedManyWithoutOutletBusinessPartnerInputSchema).optional()
 }).strict();
 
 export const BusinessPartnerUncheckedCreateWithoutAddressInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedCreateWithoutAddressInput> = z.object({
   id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
   phone: z.string(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
-  applications: z.lazy(() => ApplicationUncheckedCreateNestedManyWithoutBusinessPartnerInputSchema).optional()
+  account: z.lazy(() => AccountUncheckedCreateNestedOneWithoutBusinessPartnerInputSchema).optional(),
+  parties: z.lazy(() => PartyUncheckedCreateNestedManyWithoutBusinessPartnerInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUncheckedCreateNestedManyWithoutOutletBusinessPartnerInputSchema).optional()
 }).strict();
 
 export const BusinessPartnerCreateOrConnectWithoutAddressInputSchema: z.ZodType<Prisma.BusinessPartnerCreateOrConnectWithoutAddressInput> = z.object({
@@ -2525,6 +3545,7 @@ export const BusinessPartnerScalarWhereInputSchema: z.ZodType<Prisma.BusinessPar
   OR: z.lazy(() => BusinessPartnerScalarWhereInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => BusinessPartnerScalarWhereInputSchema),z.lazy(() => BusinessPartnerScalarWhereInputSchema).array() ]).optional(),
   id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  type: z.union([ z.lazy(() => EnumBusinessPartnerTypeFilterSchema),z.lazy(() => BusinessPartnerTypeSchema) ]).optional(),
   firstName: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   lastName: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   email: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
@@ -2532,6 +3553,72 @@ export const BusinessPartnerScalarWhereInputSchema: z.ZodType<Prisma.BusinessPar
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   addressId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+}).strict();
+
+export const BusinessPartnerCreateWithoutAccountInputSchema: z.ZodType<Prisma.BusinessPartnerCreateWithoutAccountInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  phone: z.string(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  address: z.lazy(() => AddressCreateNestedOneWithoutBusinessPartnersInputSchema),
+  parties: z.lazy(() => PartyCreateNestedManyWithoutBusinessPartnerInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationCreateNestedManyWithoutOutletBusinessPartnerInputSchema).optional()
+}).strict();
+
+export const BusinessPartnerUncheckedCreateWithoutAccountInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedCreateWithoutAccountInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  phone: z.string(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  addressId: z.string(),
+  parties: z.lazy(() => PartyUncheckedCreateNestedManyWithoutBusinessPartnerInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUncheckedCreateNestedManyWithoutOutletBusinessPartnerInputSchema).optional()
+}).strict();
+
+export const BusinessPartnerCreateOrConnectWithoutAccountInputSchema: z.ZodType<Prisma.BusinessPartnerCreateOrConnectWithoutAccountInput> = z.object({
+  where: z.lazy(() => BusinessPartnerWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutAccountInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutAccountInputSchema) ]),
+}).strict();
+
+export const BusinessPartnerUpsertWithoutAccountInputSchema: z.ZodType<Prisma.BusinessPartnerUpsertWithoutAccountInput> = z.object({
+  update: z.union([ z.lazy(() => BusinessPartnerUpdateWithoutAccountInputSchema),z.lazy(() => BusinessPartnerUncheckedUpdateWithoutAccountInputSchema) ]),
+  create: z.union([ z.lazy(() => BusinessPartnerCreateWithoutAccountInputSchema),z.lazy(() => BusinessPartnerUncheckedCreateWithoutAccountInputSchema) ]),
+}).strict();
+
+export const BusinessPartnerUpdateWithoutAccountInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateWithoutAccountInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  phone: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  address: z.lazy(() => AddressUpdateOneRequiredWithoutBusinessPartnersNestedInputSchema).optional(),
+  parties: z.lazy(() => PartyUpdateManyWithoutBusinessPartnerNestedInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUpdateManyWithoutOutletBusinessPartnerNestedInputSchema).optional()
+}).strict();
+
+export const BusinessPartnerUncheckedUpdateWithoutAccountInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedUpdateWithoutAccountInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  phone: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  addressId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  parties: z.lazy(() => PartyUncheckedUpdateManyWithoutBusinessPartnerNestedInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUncheckedUpdateManyWithoutOutletBusinessPartnerNestedInputSchema).optional()
 }).strict();
 
 export const MessageCreateManyChatInputSchema: z.ZodType<Prisma.MessageCreateManyChatInput> = z.object({
@@ -2634,7 +3721,47 @@ export const MessageUncheckedUpdateManyWithoutResponsesInputSchema: z.ZodType<Pr
   chatId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
-export const ApplicationCreateManyBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationCreateManyBusinessPartnerInput> = z.object({
+export const PartyCreateManyApplicationInputSchema: z.ZodType<Prisma.PartyCreateManyApplicationInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => PartyTypeSchema),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  businessPartnerId: z.string()
+}).strict();
+
+export const PartyUpdateWithoutApplicationInputSchema: z.ZodType<Prisma.PartyUpdateWithoutApplicationInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => EnumPartyTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  businessPartner: z.lazy(() => BusinessPartnerUpdateOneRequiredWithoutPartiesNestedInputSchema).optional()
+}).strict();
+
+export const PartyUncheckedUpdateWithoutApplicationInputSchema: z.ZodType<Prisma.PartyUncheckedUpdateWithoutApplicationInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => EnumPartyTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  businessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const PartyUncheckedUpdateManyWithoutPartiesInputSchema: z.ZodType<Prisma.PartyUncheckedUpdateManyWithoutPartiesInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => EnumPartyTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  businessPartnerId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const PartyCreateManyBusinessPartnerInputSchema: z.ZodType<Prisma.PartyCreateManyBusinessPartnerInput> = z.object({
+  id: z.string().cuid().optional(),
+  type: z.lazy(() => PartyTypeSchema),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  applicationId: z.string()
+}).strict();
+
+export const ApplicationCreateManyOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationCreateManyOutletBusinessPartnerInput> = z.object({
   id: z.string().cuid().optional(),
   amount: z.number(),
   language: z.lazy(() => LanguageSchema).optional(),
@@ -2642,11 +3769,28 @@ export const ApplicationCreateManyBusinessPartnerInputSchema: z.ZodType<Prisma.A
   productLine: z.lazy(() => ProductLineSchema).optional(),
   businessLine: z.lazy(() => BusinessLineSchema).optional(),
   channel: z.lazy(() => ChannelSchema).optional(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date()
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  completedAt: z.coerce.date().optional().nullable()
 }).strict();
 
-export const ApplicationUpdateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUpdateWithoutBusinessPartnerInput> = z.object({
+export const PartyUpdateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.PartyUpdateWithoutBusinessPartnerInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => EnumPartyTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  application: z.lazy(() => ApplicationUpdateOneRequiredWithoutPartiesNestedInputSchema).optional()
+}).strict();
+
+export const PartyUncheckedUpdateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.PartyUncheckedUpdateWithoutBusinessPartnerInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => PartyTypeSchema),z.lazy(() => EnumPartyTypeFieldUpdateOperationsInputSchema) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  applicationId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const ApplicationUpdateWithoutOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUpdateWithoutOutletBusinessPartnerInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   amount: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
   language: z.union([ z.lazy(() => LanguageSchema),z.lazy(() => EnumLanguageFieldUpdateOperationsInputSchema) ]).optional(),
@@ -2656,9 +3800,11 @@ export const ApplicationUpdateWithoutBusinessPartnerInputSchema: z.ZodType<Prism
   channel: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => EnumChannelFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  completedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  parties: z.lazy(() => PartyUpdateManyWithoutApplicationNestedInputSchema).optional()
 }).strict();
 
-export const ApplicationUncheckedUpdateWithoutBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUncheckedUpdateWithoutBusinessPartnerInput> = z.object({
+export const ApplicationUncheckedUpdateWithoutOutletBusinessPartnerInputSchema: z.ZodType<Prisma.ApplicationUncheckedUpdateWithoutOutletBusinessPartnerInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   amount: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
   language: z.union([ z.lazy(() => LanguageSchema),z.lazy(() => EnumLanguageFieldUpdateOperationsInputSchema) ]).optional(),
@@ -2668,9 +3814,11 @@ export const ApplicationUncheckedUpdateWithoutBusinessPartnerInputSchema: z.ZodT
   channel: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => EnumChannelFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  completedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  parties: z.lazy(() => PartyUncheckedUpdateManyWithoutApplicationNestedInputSchema).optional()
 }).strict();
 
-export const ApplicationUncheckedUpdateManyWithoutApplicationsInputSchema: z.ZodType<Prisma.ApplicationUncheckedUpdateManyWithoutApplicationsInput> = z.object({
+export const ApplicationUncheckedUpdateManyWithoutOutletApplicationsInputSchema: z.ZodType<Prisma.ApplicationUncheckedUpdateManyWithoutOutletApplicationsInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   amount: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
   language: z.union([ z.lazy(() => LanguageSchema),z.lazy(() => EnumLanguageFieldUpdateOperationsInputSchema) ]).optional(),
@@ -2680,10 +3828,12 @@ export const ApplicationUncheckedUpdateManyWithoutApplicationsInputSchema: z.Zod
   channel: z.union([ z.lazy(() => ChannelSchema),z.lazy(() => EnumChannelFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  completedAt: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
 }).strict();
 
 export const BusinessPartnerCreateManyAddressInputSchema: z.ZodType<Prisma.BusinessPartnerCreateManyAddressInput> = z.object({
   id: z.string().cuid().optional(),
+  type: z.lazy(() => BusinessPartnerTypeSchema).optional(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
@@ -2694,28 +3844,35 @@ export const BusinessPartnerCreateManyAddressInputSchema: z.ZodType<Prisma.Busin
 
 export const BusinessPartnerUpdateWithoutAddressInputSchema: z.ZodType<Prisma.BusinessPartnerUpdateWithoutAddressInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
   firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   phone: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  applications: z.lazy(() => ApplicationUpdateManyWithoutBusinessPartnerNestedInputSchema).optional()
+  account: z.lazy(() => AccountUpdateOneWithoutBusinessPartnerNestedInputSchema).optional(),
+  parties: z.lazy(() => PartyUpdateManyWithoutBusinessPartnerNestedInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUpdateManyWithoutOutletBusinessPartnerNestedInputSchema).optional()
 }).strict();
 
 export const BusinessPartnerUncheckedUpdateWithoutAddressInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedUpdateWithoutAddressInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
   firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   phone: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  applications: z.lazy(() => ApplicationUncheckedUpdateManyWithoutBusinessPartnerNestedInputSchema).optional()
+  account: z.lazy(() => AccountUncheckedUpdateOneWithoutBusinessPartnerNestedInputSchema).optional(),
+  parties: z.lazy(() => PartyUncheckedUpdateManyWithoutBusinessPartnerNestedInputSchema).optional(),
+  outletApplications: z.lazy(() => ApplicationUncheckedUpdateManyWithoutOutletBusinessPartnerNestedInputSchema).optional()
 }).strict();
 
 export const BusinessPartnerUncheckedUpdateManyWithoutBusinessPartnersInputSchema: z.ZodType<Prisma.BusinessPartnerUncheckedUpdateManyWithoutBusinessPartnersInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  type: z.union([ z.lazy(() => BusinessPartnerTypeSchema),z.lazy(() => EnumBusinessPartnerTypeFieldUpdateOperationsInputSchema) ]).optional(),
   firstName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   lastName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   email: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
@@ -2976,6 +4133,68 @@ export const BusinessPartnerFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.Busine
   where: BusinessPartnerWhereUniqueInputSchema,
 }).strict()
 
+export const PartyFindFirstArgsSchema: z.ZodType<Prisma.PartyFindFirstArgs> = z.object({
+  select: PartySelectSchema.optional(),
+  include: PartyIncludeSchema.optional(),
+  where: PartyWhereInputSchema.optional(),
+  orderBy: z.union([ PartyOrderByWithRelationInputSchema.array(),PartyOrderByWithRelationInputSchema ]).optional(),
+  cursor: PartyWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: PartyScalarFieldEnumSchema.array().optional(),
+}).strict()
+
+export const PartyFindFirstOrThrowArgsSchema: z.ZodType<Prisma.PartyFindFirstOrThrowArgs> = z.object({
+  select: PartySelectSchema.optional(),
+  include: PartyIncludeSchema.optional(),
+  where: PartyWhereInputSchema.optional(),
+  orderBy: z.union([ PartyOrderByWithRelationInputSchema.array(),PartyOrderByWithRelationInputSchema ]).optional(),
+  cursor: PartyWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: PartyScalarFieldEnumSchema.array().optional(),
+}).strict()
+
+export const PartyFindManyArgsSchema: z.ZodType<Prisma.PartyFindManyArgs> = z.object({
+  select: PartySelectSchema.optional(),
+  include: PartyIncludeSchema.optional(),
+  where: PartyWhereInputSchema.optional(),
+  orderBy: z.union([ PartyOrderByWithRelationInputSchema.array(),PartyOrderByWithRelationInputSchema ]).optional(),
+  cursor: PartyWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: PartyScalarFieldEnumSchema.array().optional(),
+}).strict()
+
+export const PartyAggregateArgsSchema: z.ZodType<Prisma.PartyAggregateArgs> = z.object({
+  where: PartyWhereInputSchema.optional(),
+  orderBy: z.union([ PartyOrderByWithRelationInputSchema.array(),PartyOrderByWithRelationInputSchema ]).optional(),
+  cursor: PartyWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict()
+
+export const PartyGroupByArgsSchema: z.ZodType<Prisma.PartyGroupByArgs> = z.object({
+  where: PartyWhereInputSchema.optional(),
+  orderBy: z.union([ PartyOrderByWithAggregationInputSchema.array(),PartyOrderByWithAggregationInputSchema ]).optional(),
+  by: PartyScalarFieldEnumSchema.array(),
+  having: PartyScalarWhereWithAggregatesInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict()
+
+export const PartyFindUniqueArgsSchema: z.ZodType<Prisma.PartyFindUniqueArgs> = z.object({
+  select: PartySelectSchema.optional(),
+  include: PartyIncludeSchema.optional(),
+  where: PartyWhereUniqueInputSchema,
+}).strict()
+
+export const PartyFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.PartyFindUniqueOrThrowArgs> = z.object({
+  select: PartySelectSchema.optional(),
+  include: PartyIncludeSchema.optional(),
+  where: PartyWhereUniqueInputSchema,
+}).strict()
+
 export const AddressFindFirstArgsSchema: z.ZodType<Prisma.AddressFindFirstArgs> = z.object({
   select: AddressSelectSchema.optional(),
   include: AddressIncludeSchema.optional(),
@@ -3036,6 +4255,68 @@ export const AddressFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.AddressFindUni
   select: AddressSelectSchema.optional(),
   include: AddressIncludeSchema.optional(),
   where: AddressWhereUniqueInputSchema,
+}).strict()
+
+export const AccountFindFirstArgsSchema: z.ZodType<Prisma.AccountFindFirstArgs> = z.object({
+  select: AccountSelectSchema.optional(),
+  include: AccountIncludeSchema.optional(),
+  where: AccountWhereInputSchema.optional(),
+  orderBy: z.union([ AccountOrderByWithRelationInputSchema.array(),AccountOrderByWithRelationInputSchema ]).optional(),
+  cursor: AccountWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: AccountScalarFieldEnumSchema.array().optional(),
+}).strict()
+
+export const AccountFindFirstOrThrowArgsSchema: z.ZodType<Prisma.AccountFindFirstOrThrowArgs> = z.object({
+  select: AccountSelectSchema.optional(),
+  include: AccountIncludeSchema.optional(),
+  where: AccountWhereInputSchema.optional(),
+  orderBy: z.union([ AccountOrderByWithRelationInputSchema.array(),AccountOrderByWithRelationInputSchema ]).optional(),
+  cursor: AccountWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: AccountScalarFieldEnumSchema.array().optional(),
+}).strict()
+
+export const AccountFindManyArgsSchema: z.ZodType<Prisma.AccountFindManyArgs> = z.object({
+  select: AccountSelectSchema.optional(),
+  include: AccountIncludeSchema.optional(),
+  where: AccountWhereInputSchema.optional(),
+  orderBy: z.union([ AccountOrderByWithRelationInputSchema.array(),AccountOrderByWithRelationInputSchema ]).optional(),
+  cursor: AccountWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: AccountScalarFieldEnumSchema.array().optional(),
+}).strict()
+
+export const AccountAggregateArgsSchema: z.ZodType<Prisma.AccountAggregateArgs> = z.object({
+  where: AccountWhereInputSchema.optional(),
+  orderBy: z.union([ AccountOrderByWithRelationInputSchema.array(),AccountOrderByWithRelationInputSchema ]).optional(),
+  cursor: AccountWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict()
+
+export const AccountGroupByArgsSchema: z.ZodType<Prisma.AccountGroupByArgs> = z.object({
+  where: AccountWhereInputSchema.optional(),
+  orderBy: z.union([ AccountOrderByWithAggregationInputSchema.array(),AccountOrderByWithAggregationInputSchema ]).optional(),
+  by: AccountScalarFieldEnumSchema.array(),
+  having: AccountScalarWhereWithAggregatesInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict()
+
+export const AccountFindUniqueArgsSchema: z.ZodType<Prisma.AccountFindUniqueArgs> = z.object({
+  select: AccountSelectSchema.optional(),
+  include: AccountIncludeSchema.optional(),
+  where: AccountWhereUniqueInputSchema,
+}).strict()
+
+export const AccountFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.AccountFindUniqueOrThrowArgs> = z.object({
+  select: AccountSelectSchema.optional(),
+  include: AccountIncludeSchema.optional(),
+  where: AccountWhereUniqueInputSchema,
 }).strict()
 
 export const ChatCreateArgsSchema: z.ZodType<Prisma.ChatCreateArgs> = z.object({
@@ -3202,6 +4483,47 @@ export const BusinessPartnerDeleteManyArgsSchema: z.ZodType<Prisma.BusinessPartn
   where: BusinessPartnerWhereInputSchema.optional(),
 }).strict()
 
+export const PartyCreateArgsSchema: z.ZodType<Prisma.PartyCreateArgs> = z.object({
+  select: PartySelectSchema.optional(),
+  include: PartyIncludeSchema.optional(),
+  data: z.union([ PartyCreateInputSchema,PartyUncheckedCreateInputSchema ]),
+}).strict()
+
+export const PartyUpsertArgsSchema: z.ZodType<Prisma.PartyUpsertArgs> = z.object({
+  select: PartySelectSchema.optional(),
+  include: PartyIncludeSchema.optional(),
+  where: PartyWhereUniqueInputSchema,
+  create: z.union([ PartyCreateInputSchema,PartyUncheckedCreateInputSchema ]),
+  update: z.union([ PartyUpdateInputSchema,PartyUncheckedUpdateInputSchema ]),
+}).strict()
+
+export const PartyCreateManyArgsSchema: z.ZodType<Prisma.PartyCreateManyArgs> = z.object({
+  data: z.union([ PartyCreateManyInputSchema,PartyCreateManyInputSchema.array() ]),
+  skipDuplicates: z.boolean().optional(),
+}).strict()
+
+export const PartyDeleteArgsSchema: z.ZodType<Prisma.PartyDeleteArgs> = z.object({
+  select: PartySelectSchema.optional(),
+  include: PartyIncludeSchema.optional(),
+  where: PartyWhereUniqueInputSchema,
+}).strict()
+
+export const PartyUpdateArgsSchema: z.ZodType<Prisma.PartyUpdateArgs> = z.object({
+  select: PartySelectSchema.optional(),
+  include: PartyIncludeSchema.optional(),
+  data: z.union([ PartyUpdateInputSchema,PartyUncheckedUpdateInputSchema ]),
+  where: PartyWhereUniqueInputSchema,
+}).strict()
+
+export const PartyUpdateManyArgsSchema: z.ZodType<Prisma.PartyUpdateManyArgs> = z.object({
+  data: z.union([ PartyUpdateManyMutationInputSchema,PartyUncheckedUpdateManyInputSchema ]),
+  where: PartyWhereInputSchema.optional(),
+}).strict()
+
+export const PartyDeleteManyArgsSchema: z.ZodType<Prisma.PartyDeleteManyArgs> = z.object({
+  where: PartyWhereInputSchema.optional(),
+}).strict()
+
 export const AddressCreateArgsSchema: z.ZodType<Prisma.AddressCreateArgs> = z.object({
   select: AddressSelectSchema.optional(),
   include: AddressIncludeSchema.optional(),
@@ -3241,4 +4563,45 @@ export const AddressUpdateManyArgsSchema: z.ZodType<Prisma.AddressUpdateManyArgs
 
 export const AddressDeleteManyArgsSchema: z.ZodType<Prisma.AddressDeleteManyArgs> = z.object({
   where: AddressWhereInputSchema.optional(),
+}).strict()
+
+export const AccountCreateArgsSchema: z.ZodType<Prisma.AccountCreateArgs> = z.object({
+  select: AccountSelectSchema.optional(),
+  include: AccountIncludeSchema.optional(),
+  data: z.union([ AccountCreateInputSchema,AccountUncheckedCreateInputSchema ]),
+}).strict()
+
+export const AccountUpsertArgsSchema: z.ZodType<Prisma.AccountUpsertArgs> = z.object({
+  select: AccountSelectSchema.optional(),
+  include: AccountIncludeSchema.optional(),
+  where: AccountWhereUniqueInputSchema,
+  create: z.union([ AccountCreateInputSchema,AccountUncheckedCreateInputSchema ]),
+  update: z.union([ AccountUpdateInputSchema,AccountUncheckedUpdateInputSchema ]),
+}).strict()
+
+export const AccountCreateManyArgsSchema: z.ZodType<Prisma.AccountCreateManyArgs> = z.object({
+  data: z.union([ AccountCreateManyInputSchema,AccountCreateManyInputSchema.array() ]),
+  skipDuplicates: z.boolean().optional(),
+}).strict()
+
+export const AccountDeleteArgsSchema: z.ZodType<Prisma.AccountDeleteArgs> = z.object({
+  select: AccountSelectSchema.optional(),
+  include: AccountIncludeSchema.optional(),
+  where: AccountWhereUniqueInputSchema,
+}).strict()
+
+export const AccountUpdateArgsSchema: z.ZodType<Prisma.AccountUpdateArgs> = z.object({
+  select: AccountSelectSchema.optional(),
+  include: AccountIncludeSchema.optional(),
+  data: z.union([ AccountUpdateInputSchema,AccountUncheckedUpdateInputSchema ]),
+  where: AccountWhereUniqueInputSchema,
+}).strict()
+
+export const AccountUpdateManyArgsSchema: z.ZodType<Prisma.AccountUpdateManyArgs> = z.object({
+  data: z.union([ AccountUpdateManyMutationInputSchema,AccountUncheckedUpdateManyInputSchema ]),
+  where: AccountWhereInputSchema.optional(),
+}).strict()
+
+export const AccountDeleteManyArgsSchema: z.ZodType<Prisma.AccountDeleteManyArgs> = z.object({
+  where: AccountWhereInputSchema.optional(),
 }).strict()
