@@ -15,7 +15,29 @@ Use single quotes for string values.
 Your query must not end with a semicolon.
 Provide only the SQL query without extra text or formatting.
 
-Consider these example schemas:
+model User {
+  id String @id @default(uuid())
+  name String @db.VarChar(50)
+  age Int
+  email String @db.VarChar(50)
+  posts Post[]
+}
+
+model Post {
+  id String @id @default(uuid())
+  title String @db.VarChar(50)
+  content String
+  user User @relation(fields: [userId], references: [id])
+  userId String
+}
+
+Example question: 
+'What are the names and email addresses of users who have published a post with 'AI' in the title?'
+
+Example SQL query:
+SELECT "User"."name", "User"."email" FROM "User" JOIN "Post" ON "User"."id" = "Post"."userId" WHERE "Post"."title" LIKE '%AI%'
+
+Now consider these schemas:
 
 model Application {
   id           String            @id @default(cuid())
