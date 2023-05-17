@@ -15,17 +15,20 @@ async function main() {
   const businessPartners = []
 
   for (let i = 0; i < 100; i++) {
+    const businessPartnerType = faker.helpers.arrayElement([
+      BusinessPartnerType.CUSTOMER,
+      BusinessPartnerType.ALLIANCE_PARTNER,
+    ])
     businessPartners.push(
       await prisma.businessPartner.create({
         data: {
-          firstName: faker.person.firstName(),
-          lastName: faker.person.lastName(),
+          displayName:
+            businessPartnerType === BusinessPartnerType.ALLIANCE_PARTNER
+              ? faker.company.name()
+              : faker.person.fullName(),
           email: faker.internet.email(),
           phone: faker.phone.number("###-###-####"),
-          type: faker.helpers.arrayElement([
-            BusinessPartnerType.CUSTOMER,
-            BusinessPartnerType.ALLIANCE_PARTNER,
-          ]),
+          type: businessPartnerType,
           address: {
             create: {
               street: fakerEN_CA.location.streetAddress(),
