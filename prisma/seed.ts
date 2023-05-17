@@ -2,8 +2,10 @@ import { faker, fakerEN_CA } from "@faker-js/faker"
 import {
   ApplicationStatus,
   BusinessLine,
+  BusinessPartnerType,
   Channel,
   Language,
+  PartyType,
   PrismaClient,
   ProductLine,
 } from "@prisma/client"
@@ -12,7 +14,7 @@ const prisma = new PrismaClient()
 async function main() {
   const businessPartners = []
 
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 100; i++) {
     businessPartners.push(
       await prisma.businessPartner.create({
         data: {
@@ -20,6 +22,10 @@ async function main() {
           lastName: faker.person.lastName(),
           email: faker.internet.email(),
           phone: faker.phone.number("###-###-####"),
+          type: faker.helpers.arrayElement([
+            BusinessPartnerType.CUSTOMER,
+            BusinessPartnerType.ALLIANCE_PARTNER,
+          ]),
           address: {
             create: {
               street: fakerEN_CA.location.streetAddress(),
@@ -30,6 +36,23 @@ async function main() {
           },
         },
       })
+    )
+  }
+
+  let possibleBusinessPartners = [...businessPartners]
+  for (let i = 0; i < 50; i++) {
+    const businessPartnerId = faker.helpers.arrayElement(
+      possibleBusinessPartners
+    ).id
+    await prisma.account.create({
+      data: {
+        username: faker.internet.userName(),
+        businessPartnerId,
+      },
+    })
+    possibleBusinessPartners.splice(
+      possibleBusinessPartners.findIndex((b) => b.id === businessPartnerId),
+      1
     )
   }
 
@@ -54,6 +77,9 @@ async function main() {
 
     const application = await prisma.application.create({
       data: {
+        outletBusinessPartnerId: faker.helpers.arrayElement(
+          businessPartners.filter((b) => b.type === "ALLIANCE_PARTNER")
+        ).id,
         amount: amount,
         businessLine,
         channel: faker.helpers.arrayElement([
@@ -73,7 +99,16 @@ async function main() {
         ]),
         createdAt,
         updatedAt,
-        businessPartnerId: faker.helpers.arrayElement(businessPartners).id,
+        parties: {
+          create: [
+            {
+              type: PartyType.BORROWER,
+              businessPartnerId: faker.helpers.arrayElement(
+                businessPartners.filter((b) => b.type === "CUSTOMER")
+              ).id,
+            },
+          ],
+        },
       },
     })
     console.log(application)

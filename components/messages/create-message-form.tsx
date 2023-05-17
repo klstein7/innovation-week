@@ -1,12 +1,15 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { createMessage } from "@/actions/message"
 import {
   createChartMessage,
-  createChatCompletion,
+  createErrorMessage,
+  createMessage,
   createTableMessage,
   createTextMessage,
+} from "@/actions/message"
+import {
+  createChatCompletion,
   getSqlReflection,
   getSqlResults,
 } from "@/actions/openai"
@@ -51,6 +54,7 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
       autoComplete="off"
       className="flex h-24 shrink-0 items-center justify-center gap-4 border-t px-4"
       onSubmit={form.handleSubmit(async (values) => {
+        setMessagingStatus("GENERATING")
         setIsMessaging(true)
 
         setMessages([
@@ -71,7 +75,6 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
 
         await createMessage(values)
 
-        setMessagingStatus("GENERATING")
         const sql = await createChatCompletion({
           question: values.content,
           role: ChatCompletionRequestMessageRoleEnum.System,
@@ -91,31 +94,77 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
           })
 
           if (values.type === MessageType.TABLE) {
-            await createTableMessage({
-              chatId: values.chatId,
-              results,
-              sql: reflection.response,
-            })
+            setMessagingStatus("CREATING_TABLE")
+            try {
+              await createTableMessage({
+                chatId: values.chatId,
+                results,
+                sql: reflection.response,
+              })
+            } catch {
+              await createErrorMessage({
+                chatId: values.chatId,
+                message:
+                  "Unable to generate table message. Please modify your prompt and try again.",
+              })
+            }
           } else if (values.type === MessageType.TEXT) {
-            await createTextMessage({
-              chatId: values.chatId,
-              question: values.content,
-              results,
-              sql: reflection.response,
-            })
+            setMessagingStatus("CREATING_TEXT")
+            try {
+              await createTextMessage({
+                chatId: values.chatId,
+                question: values.content,
+                results,
+                sql: reflection.response,
+              })
+            } catch {
+              try {
+                await createMessage({
+                  ...values,
+                  role: MessageRole.ASSISTANT,
+                  chatId: values.chatId,
+                  content:
+                    "Token limit exceeded. Attempting to create a table message instead.",
+                })
+                setMessagingStatus("CREATING_TABLE")
+                await createTableMessage({
+                  chatId: values.chatId,
+                  results,
+                  sql: reflection.response,
+                })
+              } catch {
+                await createErrorMessage({
+                  chatId: values.chatId,
+                  message:
+                    "Unable to generate message. Please modify your prompt and try again.",
+                })
+              }
+            }
           } else if (values.type === MessageType.CHART) {
-            await createChartMessage({
-              chatId: values.chatId,
-              question: values.content,
-              results,
-              sql: reflection.response,
-            })
+            setMessagingStatus("CREATING_CHART")
+            try {
+              await createChartMessage({
+                chatId: values.chatId,
+                question: values.content,
+                results,
+                sql: reflection.response,
+              })
+            } catch {
+              await createErrorMessage({
+                chatId: values.chatId,
+                message:
+                  "Unable to generate chart message. Please modify your prompt and try again.",
+              })
+            }
           }
+        } else {
+          await createErrorMessage({
+            chatId: values.chatId,
+            message:
+              reflection?.response ||
+              "Unable to generate message. Please try again.",
+          })
         }
-
-        setMessagingStatus("DONE")
-
-        // await createMessage(values)
 
         form.reset({
           ...watchForm,

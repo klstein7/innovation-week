@@ -1,13 +1,10 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
 import { prisma } from "@/prisma/db"
 import { MessageRole, MessageType, Prisma } from "@prisma/client"
 import { ChatCompletionRequestMessageRoleEnum } from "openai"
 
 import { openai } from "@/lib/openai"
-
-import { createErrorMessage } from "./message"
 
 const SQL_PROMPT = `
 Today's date is ${new Date().toLocaleDateString()}.
@@ -15,6 +12,7 @@ You are a database engineer tasked with creating a PostgreSQL query using the pr
 
 Use double quotes for table and column names.
 Use single quotes for string values.
+Your query must not end with a semicolon.
 Provide only the SQL query without extra text or formatting.
 
 Consider these example schemas:
@@ -281,7 +279,6 @@ Today's date is: ${new Date().toLocaleDateString()}
 As an AI analyst, you are tasked to effectively analyze the provided data and provide a short and concise summary of it. Please follow these guidelines:
 
 Craft a short and concise response using the data retrieved from the SQL query. Analyze the results of the SQL query and incorporate relevant information to answer the given question. 
-If the question asks about a specific date range, assume that the SQL result provides data in that date range.
 If the SQL result provides a count, assume that the count represents the answer to the question.
 
 For example, given the dataset provided:
@@ -320,11 +317,11 @@ Given the dataset provided:
 
 And the question:
 
-How many applications were received in the last 30 days?
+How many applications were received in the last week?
 
 The following is an acceptable response:
 
-There has been 2 applications received in the last 30 days.
+There has been 2 applications received in the last week.
 
 Now, please apply these steps and principles to the following dataset and question: 
 
@@ -349,25 +346,6 @@ type ChatCompletionRequest = {
   input?: string
   role: ChatCompletionRequestMessageRoleEnum
   type: ChatCompletionMessageEnum
-}
-
-type ChartResponse = {
-  status: "VALID" | "INVALID"
-  response: {
-    title: string
-    categories: string[]
-    maxValue?: number
-    data: {
-      topic: string
-      [key: string]: string | number
-    }
-  } | null
-}
-
-const stringify = (results: Record<string, unknown>[]) => {
-  return JSON.stringify(results, (key, value) =>
-    typeof value === "bigint" ? value.toString() : value
-  )
 }
 
 const getPrompt = (type: ChatCompletionMessageEnum) => {
@@ -449,95 +427,4 @@ export const getSqlReflection = async ({
 export const getSqlResults = async ({ sql }: { sql: string }) => {
   const results = await prisma.$queryRawUnsafe(sql)
   return results as Record<string, unknown>[]
-}
-
-export const createTableMessage = async ({
-  results,
-  chatId,
-  sql,
-}: {
-  results: Record<string, unknown>[]
-  chatId: string
-  sql: string
-}) => {
-  await prisma.message.create({
-    data: {
-      type: MessageType.TABLE,
-      results: stringify(results),
-      content: "Here are the results:",
-      chatId,
-      role: MessageRole.ASSISTANT,
-      sql,
-    },
-  })
-}
-
-export const createTextMessage = async ({
-  results,
-  chatId,
-  sql,
-  question,
-}: {
-  results: Record<string, unknown>[]
-  chatId: string
-  sql: string
-  question: string
-}) => {
-  const textResponse = await createChatCompletion({
-    type: "TEXT",
-    question,
-    input: stringify(results),
-    role: ChatCompletionRequestMessageRoleEnum.System,
-  })
-
-  await prisma.message.create({
-    data: {
-      type: MessageType.TEXT,
-      content: textResponse,
-      chatId,
-      role: MessageRole.ASSISTANT,
-      results: textResponse,
-      sql,
-    },
-  })
-}
-
-export const createChartMessage = async ({
-  results,
-  chatId,
-  sql,
-  question,
-}: {
-  results: Record<string, unknown>[]
-  chatId: string
-  sql: string
-  question: string
-}) => {
-  const chartResponse = await createChatCompletion({
-    type: "CHART",
-    question,
-    input: stringify(results),
-    role: ChatCompletionRequestMessageRoleEnum.System,
-  })
-
-  const parsedChartResponse = JSON.parse(chartResponse) as ChartResponse
-
-  if (parsedChartResponse.status === "VALID") {
-    await prisma.message.create({
-      data: {
-        type: MessageType.CHART,
-        content: "Here is the chart:",
-        chatId,
-        role: MessageRole.ASSISTANT,
-        results: JSON.stringify(parsedChartResponse.response),
-        sql,
-      },
-    })
-  } else {
-    await createErrorMessage({
-      chatId,
-      message:
-        "Sorry, I couldn't create a chart for that. Please modify your prompt and try again.",
-    })
-  }
 }

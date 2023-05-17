@@ -32,8 +32,12 @@ export const MessageList = ({ messages }: Props) => {
         return "Reflecting on SQL..."
       case "EXECUTING":
         return "Executing SQL..."
-      case "DONE":
-        return "Done!"
+      case "CREATING_TABLE":
+        return "Creating table message..."
+      case "CREATING_CHART":
+        return "Creating chart message..."
+      case "CREATING_TEXT":
+        return "Creating text message..."
     }
   }
 
