@@ -75,12 +75,11 @@ model Application {
 }
 
 model BusinessPartner {
-  id        String              @id @default(cuid())
-  type      BusinessPartnerType @default(CUSTOMER)
-  firstName String
-  lastName  String
-  email     String
-  phone     String
+  id          String              @id @default(cuid())
+  type        BusinessPartnerType @default(CUSTOMER)
+  displayName String
+  email       String
+  phone       String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -88,7 +87,8 @@ model BusinessPartner {
   address   Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
   addressId String
 
-  account            Account?
+  account Account?
+
   parties            Party[]
   outletApplications Application[] @relation("OutletApplications")
 }
@@ -163,3 +163,5 @@ enum PartyType {
   BORROWER
   GUARANTOR
 }
+
+/// End exposed to AI

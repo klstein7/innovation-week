@@ -75,15 +75,18 @@ export const createTextMessage = async ({
   chatId,
   sql,
   question,
+  gptVersionModel,
 }: {
   results: Record<string, unknown>[]
   chatId: string
   sql: string
   question: string
+  gptVersionModel: string 
 }) => {
   const textResponse = await createChatCompletion({
     type: "TEXT",
     question,
+    gptVersionModel,
     input: stringify(results),
     role: ChatCompletionRequestMessageRoleEnum.System,
   })
@@ -105,15 +108,18 @@ export const createChartMessage = async ({
   chatId,
   sql,
   question,
+  gptVersionModel,
 }: {
   results: Record<string, unknown>[]
   chatId: string
   sql: string
   question: string
+  gptVersionModel: string
 }) => {
   const chartResponse = await createChatCompletion({
     type: "CHART",
     question,
+    gptVersionModel,
     input: stringify(results),
     role: ChatCompletionRequestMessageRoleEnum.System,
   })

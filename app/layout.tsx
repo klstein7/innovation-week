@@ -4,7 +4,7 @@ import { Metadata } from "next"
 import { siteConfig } from "@/config/site"
 import { fontSans } from "@/lib/fonts"
 import { cn } from "@/lib/utils"
-import { GptSwitch } from "@/components/ui/GptSwitch"
+import { GptSwitch } from "@/components/ui/gpt-switch"
 import { Switch } from "@/components/ui/switch"
 import { Toaster } from "@/components/ui/toaster"
 import { TailwindIndicator } from "@/components/tailwind-indicator"
@@ -45,9 +45,13 @@ export default function RootLayout({ children }: RootLayoutProps) {
         >
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <div className="relative flex h-screen flex-col">
-              <div className="flex h-12 shrink-0 items-center justify-end border-b px-2">
-                <GptSwitch />
-                <ThemeToggle />
+              <div className="flex h-12 shrink-0 items-center border-b px-2">
+                <div className="absolute inset-x-0 m-auto grid place-items-center">
+                  <GptSwitch />
+                </div>
+                <div className="absolute right-0">
+                  <ThemeToggle />
+                </div>
               </div>
               <div className="flex flex-1 flex-col">{children}</div>
             </div>

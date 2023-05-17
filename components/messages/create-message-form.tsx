@@ -13,7 +13,7 @@ import {
   getSqlReflection,
   getSqlResults,
 } from "@/actions/openai"
-import { isMessagingAtom, messagesAtom, messagingStatusAtom } from "@/atoms"
+import { gptSwitchAtom, isMessagingAtom, messagesAtom, messagingStatusAtom } from "@/atoms"
 import { MessageUncheckedCreateInputSchema } from "@/prisma/generated/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { MessageRole, MessageType } from "@prisma/client"
@@ -37,11 +37,14 @@ type Props = {
 }
 
 export const CreateMessageForm = ({ defaultValues }: Props) => {
+  const DEFAULT_ERROR_MESSAGE =
+    "Something went wrong. Please modify your prompt and try again."
   const router = useRouter()
 
-  const [messagingStatus, setMessagingStatus] = useAtom(messagingStatusAtom)
+  const [, setMessagingStatus] = useAtom(messagingStatusAtom)
   const [isMessaging, setIsMessaging] = useAtom(isMessagingAtom)
   const [messages, setMessages] = useAtom(messagesAtom)
+  const [gptAtom, ] = useAtom(gptSwitchAtom)
   const form = useForm<z.infer<typeof MessageUncheckedCreateInputSchema>>({
     resolver: zodResolver(MessageUncheckedCreateInputSchema),
     defaultValues,
@@ -79,54 +82,26 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
           question: values.content,
           role: ChatCompletionRequestMessageRoleEnum.System,
           type: "SQL",
+          gptVersionModel: gptAtom,
         })
 
         setMessagingStatus("REFLECTING")
         const reflection = await getSqlReflection({
           input: sql,
           chatId: values.chatId,
+          gptVersionModel: gptAtom,
         })
 
         if (reflection?.status === "VALID") {
-          setMessagingStatus("EXECUTING")
-          const results = await getSqlResults({
-            sql: reflection.response,
-          })
+          try {
+            setMessagingStatus("EXECUTING")
+            const results = await getSqlResults({
+              sql: reflection.response,
+            })
 
-          if (values.type === MessageType.TABLE) {
-            setMessagingStatus("CREATING_TABLE")
-            try {
-              await createTableMessage({
-                chatId: values.chatId,
-                results,
-                sql: reflection.response,
-              })
-            } catch {
-              await createErrorMessage({
-                chatId: values.chatId,
-                message:
-                  "Unable to generate table message. Please modify your prompt and try again.",
-              })
-            }
-          } else if (values.type === MessageType.TEXT) {
-            setMessagingStatus("CREATING_TEXT")
-            try {
-              await createTextMessage({
-                chatId: values.chatId,
-                question: values.content,
-                results,
-                sql: reflection.response,
-              })
-            } catch {
+            if (values.type === MessageType.TABLE) {
+              setMessagingStatus("CREATING_TABLE")
               try {
-                await createMessage({
-                  ...values,
-                  role: MessageRole.ASSISTANT,
-                  chatId: values.chatId,
-                  content:
-                    "Token limit exceeded. Attempting to create a table message instead.",
-                })
-                setMessagingStatus("CREATING_TABLE")
                 await createTableMessage({
                   chatId: values.chatId,
                   results,
@@ -135,34 +110,68 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
               } catch {
                 await createErrorMessage({
                   chatId: values.chatId,
-                  message:
-                    "Unable to generate message. Please modify your prompt and try again.",
+                  message: DEFAULT_ERROR_MESSAGE,
+                })
+              }
+            } else if (values.type === MessageType.TEXT) {
+              setMessagingStatus("CREATING_TEXT")
+              try {
+                await createTextMessage({
+                  chatId: values.chatId,
+                  question: values.content,
+                  results,
+                  sql: reflection.response,
+                  gptVersionModel: gptAtom,
+                })
+              } catch {
+                try {
+                  await createMessage({
+                    ...values,
+                    role: MessageRole.ASSISTANT,
+                    chatId: values.chatId,
+                    content:
+                      "Token limit exceeded. Attempting to create a table message instead.",
+                  })
+                  setMessagingStatus("CREATING_TABLE")
+                  await createTableMessage({
+                    chatId: values.chatId,
+                    results,
+                    sql: reflection.response,
+                  })
+                } catch {
+                  await createErrorMessage({
+                    chatId: values.chatId,
+                    message: DEFAULT_ERROR_MESSAGE,
+                  })
+                }
+              }
+            } else if (values.type === MessageType.CHART) {
+              setMessagingStatus("CREATING_CHART")
+              try {
+                await createChartMessage({
+                  chatId: values.chatId,
+                  question: values.content,
+                  results,
+                  sql: reflection.response,
+                  gptVersionModel: gptAtom,
+                })
+              } catch {
+                await createErrorMessage({
+                  chatId: values.chatId,
+                  message: DEFAULT_ERROR_MESSAGE,
                 })
               }
             }
-          } else if (values.type === MessageType.CHART) {
-            setMessagingStatus("CREATING_CHART")
-            try {
-              await createChartMessage({
-                chatId: values.chatId,
-                question: values.content,
-                results,
-                sql: reflection.response,
-              })
-            } catch {
-              await createErrorMessage({
-                chatId: values.chatId,
-                message:
-                  "Unable to generate chart message. Please modify your prompt and try again.",
-              })
-            }
+          } catch {
+            await createErrorMessage({
+              chatId: values.chatId,
+              message: DEFAULT_ERROR_MESSAGE,
+            })
           }
         } else {
           await createErrorMessage({
             chatId: values.chatId,
-            message:
-              reflection?.response ||
-              "Unable to generate message. Please try again.",
+            message: reflection?.response || DEFAULT_ERROR_MESSAGE,
           })
         }
 
