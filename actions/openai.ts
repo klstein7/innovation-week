@@ -264,6 +264,7 @@ type ReflectionResponse = {
 type ChatCompletionRequest = {
   question?: string
   input?: string
+  gptVersionModel: string
   role: ChatCompletionRequestMessageRoleEnum
   type: ChatCompletionMessageEnum
 }
@@ -286,6 +287,7 @@ export const createChatCompletion = async ({
   input,
   role,
   type,
+  gptVersionModel,
 }: ChatCompletionRequest) => {
   let prompt = getPrompt(type)
   if (input) {
@@ -295,7 +297,7 @@ export const createChatCompletion = async ({
     prompt = prompt.replace("{question}", question)
   }
   const response = await openai.createChatCompletion({
-    model: "gpt-3.5-turbo",
+    model: gptVersionModel,
     temperature: 0,
     max_tokens: 2048,
     messages: [
@@ -317,15 +319,18 @@ export const createChatCompletion = async ({
 export const getSqlReflection = async ({
   input,
   chatId,
+  gptVersionModel,
 }: {
   input: string
   chatId: string
+  gptVersionModel: string
 }) => {
   const reflection = await createChatCompletion({
     question: "",
     input,
     role: ChatCompletionRequestMessageRoleEnum.System,
     type: "REFLECTION",
+    gptVersionModel,
   })
 
   try {

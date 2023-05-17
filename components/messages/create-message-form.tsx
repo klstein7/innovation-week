@@ -13,7 +13,7 @@ import {
   getSqlReflection,
   getSqlResults,
 } from "@/actions/openai"
-import { isMessagingAtom, messagesAtom, messagingStatusAtom } from "@/atoms"
+import { gptSwitchAtom, isMessagingAtom, messagesAtom, messagingStatusAtom } from "@/atoms"
 import { MessageUncheckedCreateInputSchema } from "@/prisma/generated/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { MessageRole, MessageType } from "@prisma/client"
@@ -44,6 +44,7 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
   const [, setMessagingStatus] = useAtom(messagingStatusAtom)
   const [isMessaging, setIsMessaging] = useAtom(isMessagingAtom)
   const [messages, setMessages] = useAtom(messagesAtom)
+  const [gptAtom, ] = useAtom(gptSwitchAtom)
   const form = useForm<z.infer<typeof MessageUncheckedCreateInputSchema>>({
     resolver: zodResolver(MessageUncheckedCreateInputSchema),
     defaultValues,
@@ -81,12 +82,14 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
           question: values.content,
           role: ChatCompletionRequestMessageRoleEnum.System,
           type: "SQL",
+          gptVersionModel: gptAtom,
         })
 
         setMessagingStatus("REFLECTING")
         const reflection = await getSqlReflection({
           input: sql,
           chatId: values.chatId,
+          gptVersionModel: gptAtom,
         })
 
         if (reflection?.status === "VALID") {
@@ -118,6 +121,7 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
                   question: values.content,
                   results,
                   sql: reflection.response,
+                  gptVersionModel: gptAtom,
                 })
               } catch {
                 try {
@@ -149,6 +153,7 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
                   question: values.content,
                   results,
                   sql: reflection.response,
+                  gptVersionModel: gptAtom,
                 })
               } catch {
                 await createErrorMessage({

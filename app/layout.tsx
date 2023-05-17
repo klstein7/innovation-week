@@ -45,9 +45,13 @@ export default function RootLayout({ children }: RootLayoutProps) {
         >
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <div className="relative flex h-screen flex-col">
-              <div className="flex h-12 shrink-0 items-center justify-end border-b px-2">
-                <GptSwitch />
-                <ThemeToggle />
+              <div className="flex h-12 shrink-0 items-center border-b px-2">
+                <div className="absolute m-auto left-0 right-0 grid place-items-center">
+                  <GptSwitch/>
+                </div>
+                <div className="absolute right-0">
+                  <ThemeToggle />
+                </div>
               </div>
               <div className="flex flex-1 flex-col">{children}</div>
             </div>
