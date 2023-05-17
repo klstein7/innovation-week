@@ -145,3 +145,7 @@ export const createChartMessage = async ({
     })
   }
 }
+
+export const clear = async ({ chatId }: { chatId: string }) => {
+  // TODO: delete messages
+}

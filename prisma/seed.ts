@@ -5,7 +5,6 @@ import {
   BusinessPartnerType,
   Channel,
   Language,
-  PartyType,
   PrismaClient,
   ProductLine,
 } from "@prisma/client"
@@ -42,23 +41,6 @@ async function main() {
     )
   }
 
-  let possibleBusinessPartners = [...businessPartners]
-  for (let i = 0; i < 50; i++) {
-    const businessPartnerId = faker.helpers.arrayElement(
-      possibleBusinessPartners
-    ).id
-    await prisma.account.create({
-      data: {
-        username: faker.internet.userName(),
-        businessPartnerId,
-      },
-    })
-    possibleBusinessPartners.splice(
-      possibleBusinessPartners.findIndex((b) => b.id === businessPartnerId),
-      1
-    )
-  }
-
   for (let i = 0; i < 300; i++) {
     const businessLine = faker.helpers.arrayElement([
       BusinessLine.CORPORATE_AND_COMMERCIAL,
@@ -80,7 +62,7 @@ async function main() {
 
     const application = await prisma.application.create({
       data: {
-        outletBusinessPartnerId: faker.helpers.arrayElement(
+        outletId: faker.helpers.arrayElement(
           businessPartners.filter((b) => b.type === "ALLIANCE_PARTNER")
         ).id,
         amount: amount,
@@ -103,16 +85,9 @@ async function main() {
         createdAt,
         updatedAt,
         completedAt: faker.datatype.boolean() ? updatedAt : null,
-        parties: {
-          create: [
-            {
-              type: PartyType.BORROWER,
-              businessPartnerId: faker.helpers.arrayElement(
-                businessPartners.filter((b) => b.type === "CUSTOMER")
-              ).id,
-            },
-          ],
-        },
+        borrowerId: faker.helpers.arrayElement(
+          businessPartners.filter((b) => b.type === "CUSTOMER")
+        ).id,
       },
     })
     console.log(application)
