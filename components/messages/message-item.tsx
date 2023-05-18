@@ -96,6 +96,21 @@ export const MessageItem = ({ message }: Props) => {
           message.role === MessageRole.USER ? "items-end" : "items-start"
         )}
       >
+        <div className="flex items-center gap-2">
+          <button
+              className="flex select-none items-center justify-center gap-2 rounded border px-3 py-1 text-xs hover:bg-primary hover:text-primary-foreground"
+              onClick={() => {
+                copy(message.content)
+                toast({
+                  title: "Copied to clipboard",
+                  description: "The text has been copied to your clipboard.",
+                })
+              }}
+            >
+            <Copy className="h-3 w-3" />
+            Text
+          </button>
+        </div>
         <div
           className={cn(
             "flex w-fit max-w-[calc(100vw-3rem)] flex-col overflow-x-auto rounded-md px-4 py-2",
