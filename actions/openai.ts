@@ -362,3 +362,4 @@ export const getSqlResults = async ({ sql }: { sql: string }) => {
   const results = await prisma.$queryRawUnsafe(sql)
   return results as Record<string, unknown>[]
 }
+

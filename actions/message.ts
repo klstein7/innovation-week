@@ -3,6 +3,7 @@
 import { prisma } from "@/prisma/db"
 import { MessageRole, MessageType, Prisma } from "@prisma/client"
 import { ChatCompletionRequestMessageRoleEnum } from "openai"
+import { revalidatePath } from "next/cache"
 
 import { createChatCompletion } from "./openai"
 
@@ -146,6 +147,16 @@ export const createChartMessage = async ({
   }
 }
 
-export const clear = async ({ chatId }: { chatId: string }) => {
-  // TODO: delete messages
+export const clearMessages = async ({
+  chatId,
+}: {
+  chatId: string
+}) => {
+  await prisma.message.deleteMany({
+    where: {
+      chatId,
+    },
+  })
+
+  revalidatePath(`/chats/${chatId}`)
 }
