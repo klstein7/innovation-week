@@ -113,8 +113,9 @@ WHERE "Application"."amount" > 5000
 const REFLECTION_PROMPT = `
 As an AI model with SQL analysis capabilities, please perform the following tasks:
 
-Analyze the supplied SQL query to determine whether it modifies the data. If it does, mark its status as 'INVALID'.
-If the query does not alter data, assess its syntactic correctness. If it's not correctly structured, correct the syntax and mark its status as 'VALID'.
+If the input is not a SQL query, mark its status as 'INVALID' and return an error message explaining that the input is not a SQL query.
+Analyze the supplied SQL query to determine whether it inserts, updates, or deletes data in the database. If it does, mark its status as 'INVALID' and return an error message explaining that the query is not allowed.
+Assess its syntactic correctness. If it's not correctly structured, correct the syntax and mark its status as 'VALID'.
 If the query is syntactically correct and doesn't modify data, mark its status as 'VALID'.
 Return the outcome as a JSON object following this format:
 {
@@ -157,7 +158,7 @@ As an AI model, you're tasked with reformatting a given dataset into a structure
 If the input dataset isn't suitable for a bar chart, indicate this with a 'status' value of 'INVALID'. If suitable, use 'VALID'.
 
 The restructured data must include a title, categories, and data objects. Each data object represents a bar in the chart, with a 'topic' field and a field for each category's corresponding value.
-Each topic must be less than 10 characters long. If a topic is longer than 10 characters, truncate it to 10 characters.
+Each topic must be less than 10 characters long. If a topic is longer than 10 characters, find a way to shorten it while preserving its meaning.
 Your response must only be a valid JSON object in the format specified above. Do not include any other information in your response.
 
 For example, given the following dataset:

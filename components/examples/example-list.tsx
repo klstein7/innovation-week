@@ -14,7 +14,8 @@ export const ExampleList = () => {
     },
     {
       type: MessageType.TABLE,
-      content: "What's the majority chosen language for applications by province?",
+      content:
+        "What's the majority chosen language for applications by province?",
     },
     {
       type: MessageType.TEXT,
@@ -38,11 +39,15 @@ export const ExampleList = () => {
     },
     {
       type: MessageType.CHART,
-      content: "Amount of small business applications by status?",
+      content: "Count the small business applications by status",
     },
     {
       type: MessageType.CHART,
-      content: "SELECT * FROM \"Application\" GROUP BY \"Address\".\"province\"",
+      content: 'SELECT * FROM "Application" GROUP BY "Address"."province"',
+    },
+    {
+      type: MessageType.TEXT,
+      content: "How do I make toast? 🍞",
     },
   ]
   return (
