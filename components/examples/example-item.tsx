@@ -30,7 +30,7 @@ export const ExampleItem = ({ type, content }: Props) => {
   }
   return (
     <li
-      className="border-rounded flex cursor-pointer select-none items-center gap-2 rounded-full border px-4 py-2 transition-all duration-200 ease-in-out hover:scale-105 hover:border-primary"
+      className="border-rounded flex cursor-pointer select-none items-center gap-2 rounded-full border px-6 py-2 transition-all duration-200 ease-in-out hover:border-primary hover:shadow-lg"
       onClick={async () => {
         await createMessageMutation({
           chatId,
