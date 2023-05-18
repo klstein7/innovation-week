@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 import { ExampleList } from "../examples/example-list"
+import { OpenAiAlert } from "../ui/open-ai-alert"
 import { MessageItem } from "./message-item"
 
 type Props = {
@@ -73,6 +74,7 @@ export const MessageList = ({ messages }: Props) => {
           {getMessageStatus()}
         </div>
       </div>
+      <OpenAiAlert />
     </div>
   )
 }

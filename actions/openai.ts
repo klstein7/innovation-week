@@ -8,37 +8,15 @@ import { openai } from "@/lib/openai"
 
 const SQL_PROMPT = `
 Today's date is ${new Date().toLocaleDateString()}.
-You are a database engineer tasked with creating a PostgreSQL query using the provided Prisma model schemas. Your query must answer a specific question, and may require JOINs, WHERE clauses, or aggregations. Follow these guidelines:
+You are a database engineer and your task is to build a PostgreSQL query, drawing upon the Prisma model schemas provided below. The query you create will answer a specific question, and it might necessitate the use of JOINs, WHERE clauses, or aggregations. Please follow these guidelines while writing your query:
 
 Use double quotes for table and column names.
 Use single quotes for string values.
-Your query must not end with a semicolon.
-Your columns must always have a short descriptive alias.
-Provide only the SQL query without extra text or formatting.
+Do not end your query with a semicolon.
+Assign short descriptive aliases to your columns.
+Present only the SQL query, with no supplementary text or formatting.
 
-model User {
-  id String @id @default(uuid())
-  name String @db.VarChar(50)
-  age Int
-  email String @db.VarChar(50)
-  posts Post[]
-}
-
-model Post {
-  id String @id @default(uuid())
-  title String @db.VarChar(50)
-  content String
-  user User @relation(fields: [userId], references: [id])
-  userId String
-}
-
-Example question: 
-'What are the names and email addresses of users who have published a post with 'AI' in the title?'
-
-Example SQL query:
-SELECT "User"."name" as "name", "User"."email" as "email" FROM "User" JOIN "Post" ON "User"."id" = "Post"."userId" WHERE "Post"."title" LIKE '%AI%'
-
-Now consider these schemas:
+Here are the model schemas you'll be working with:
 
 model Application {
   id           String            @id @default(cuid())
@@ -52,10 +30,11 @@ model Application {
   updatedAt    DateTime          @updatedAt
   completedAt  DateTime?
 
-  outletBusinessPartner   BusinessPartner @relation("OutletApplications", fields: [outletBusinessPartnerId], references: [id], onDelete: Cascade)
-  outletBusinessPartnerId String
+  outlet  BusinessPartner @relation("OutletApplications", fields: [outletId], references: [id], onDelete: Cascade)
+  outletId String
 
-  parties Party[] ///Can be used to search by province, city, etc.
+  borrower   BusinessPartner @relation("BorrowerApplications", fields: [borrowerId], references: [id], onDelete: Cascade)
+  borrowerId String
 }
 
 model BusinessPartner {
@@ -71,24 +50,8 @@ model BusinessPartner {
   address   Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
   addressId String
 
-  account   Account?
-  accountId String? ///Can be used to search by username
-
-  parties            Party[]
-  outletApplications Application[] @relation("OutletApplications")
-}
-
-model Party {
-  id        String    @id @default(cuid())
-  type      PartyType
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
-  businessPartnerId String // Can be used to search by business partner name, email, phone, etc.
-
-  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  applicationId String      @unique
+  outletApplications   Application[] @relation("OutletApplications")
+  borrowerApplications Application[] @relation("BorrowerApplications")
 }
 
 model Address {
@@ -101,16 +64,6 @@ model Address {
   updatedAt DateTime @updatedAt
 
   businessPartners BusinessPartner[]
-}
-
-model Account {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  businessPartner   BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
-  businessPartnerId String          @unique
 }
 
 enum ApplicationStatus {
@@ -144,13 +97,17 @@ enum BusinessPartnerType {
   CUSTOMER
 }
 
-enum PartyType {
-  BORROWER
-  GUARANTOR
-}
+Using these schemas, please create a PostgreSQL query to answer the following question:
 
-Using these schemas, create a PostgreSQL query to answer this question:
 {question}
+
+For instance, if the question was 'What is the email of the business partner who has an application with an amount greater than 5000?' an example query could be:
+
+SELECT "BusinessPartner"."email" as "email"
+FROM "BusinessPartner"
+JOIN "Application"
+ON "BusinessPartner"."id" = "Application"."borrowerId"
+WHERE "Application"."amount" > 5000
 `
 
 const REFLECTION_PROMPT = `
