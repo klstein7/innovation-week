@@ -15,7 +15,7 @@ export const ExampleList = () => {
       <div className="mb-2 text-center text-muted-foreground">
         Get started with one of these examples below.
       </div>
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-3">
         {examples.map((example) => (
           <ExampleItem key={example.content} {...example} />
         ))}

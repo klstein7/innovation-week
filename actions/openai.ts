@@ -111,22 +111,27 @@ WHERE "Application"."amount" > 5000
 `
 
 const REFLECTION_PROMPT = `
-As an artificial intelligence model, analyze the provided SQL query and follow these steps:
+As an AI model with SQL analysis capabilities, please perform the following tasks:
 
-Determine whether the query alters data. If so, mark its status as 'INVALID'.
-Check if the query is syntactically incorrect. If it is, correct the syntax and mark its status as 'VALID'.
-If the query is syntactically correct and does not alter data, mark its status as 'VALID'.
-Provide your answer as a JSON object in this format:
+Analyze the supplied SQL query to determine whether it modifies the data. If it does, mark its status as 'INVALID'.
+If the query does not alter data, assess its syntactic correctness. If it's not correctly structured, correct the syntax and mark its status as 'VALID'.
+If the query is syntactically correct and doesn't modify data, mark its status as 'VALID'.
+Return the outcome as a JSON object following this format:
 {
   "status": "<VALID | INVALID>",
-  "response": "<The original or corrected SQL query | An error message >",
+  "response": "<Original or corrected SQL query | Error message>"
 }
-For instance, given the query SELECT "User"."name", "User"."email" FROM "User" JOIN "Post" ON "User"."id" = "Post"."userId" WHERE "Post"."title" LIKE '%AI%', your output should be:
+
+For example, if given this SQL query:
+SELECT "User"."name", "User"."email" FROM "User" JOIN "Post" ON "User"."id" = "Post"."userId" WHERE "Post"."title" LIKE '%AI%'
+The output should look like:
+
 {
   "status": "VALID",
   "response": "SELECT \"User\".\"name\", \"User\".\"email\" FROM \"User\" JOIN \"Post\" ON \"User\".\"id\" = \"Post\".\"userId\" WHERE \"Post\".\"title\" LIKE '%AI%'"
 }
-Now, apply these steps to the following SQL query:
+
+Now, apply this analysis process to the SQL query provided below:
 {input}
 `
 
@@ -362,4 +367,3 @@ export const getSqlResults = async ({ sql }: { sql: string }) => {
   const results = await prisma.$queryRawUnsafe(sql)
   return results as Record<string, unknown>[]
 }
-

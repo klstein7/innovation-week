@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation"
 import { isMessagingAtom, isOpenAiAlertAtom } from "@/atoms"
 import { MessageUncheckedCreateInputSchema } from "@/prisma/generated/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { MessageRole, MessageType } from "@prisma/client"
+import { MessageType } from "@prisma/client"
 import { useAtom } from "jotai"
 import { BarChart, Database, MessageCircle, Send } from "lucide-react"
-import { ChatCompletionRequestMessageRoleEnum } from "openai"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
@@ -63,15 +62,20 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
       <div className="relative w-full max-w-2xl">
         <Input
           disabled={isMessaging}
-          className="w-full rounded-full px-4 shadow-2xl"
+          className="z-0 w-full rounded-full pl-4 pr-12 shadow-2xl"
           placeholder="E.g. What applications did we get last week?"
           {...form.register("content")}
         />
-        <div className="absolute inset-y-0 right-0 flex items-center px-4">
-          <Send className="h-5 w-5 text-ring" />
-        </div>
+        <button
+          disabled={isMessaging}
+          type="submit"
+          className="absolute inset-y-0 right-0 z-10 flex items-center px-4 text-ring hover:text-primary disabled:pointer-events-none disabled:text-ring"
+        >
+          <Send className="h-5 w-5" />
+        </button>
       </div>
       <Select
+        disabled={isMessaging}
         value={watchForm.type}
         onValueChange={(value: MessageType) => {
           form.setValue("type", value)
