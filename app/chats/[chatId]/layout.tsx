@@ -1,4 +1,5 @@
 import { MessageType } from "@prisma/client"
+import { useAtom } from "jotai"
 
 import { CreateMessageForm } from "@/components/messages/create-message-form"
 
@@ -17,7 +18,6 @@ export default function ChatLayout({ children, params }: Props) {
         defaultValues={{
           chatId: params.chatId,
           content: "",
-          type: MessageType.TABLE,
         }}
       />
     </section>

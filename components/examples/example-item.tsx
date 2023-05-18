@@ -1,7 +1,9 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation"
+import { gptSwitchAtom, messageTypeAtom } from "@/atoms"
 import { MessageType } from "@prisma/client"
+import { useAtom } from "jotai"
 
 import { useCreateMessage } from "@/hooks/use-create-message"
 
@@ -10,11 +12,18 @@ import { Badge } from "../ui/badge"
 type Props = {
   type: MessageType
   content: string
+  //add gpt type here
 }
-export const ExampleItem = ({ type, content }: Props) => {
+export const ExampleItem = ({
+  type,
+  content,
+}: //and here
+Props) => {
   const params = useParams()
   const router = useRouter()
   const createMessageMutation = useCreateMessage()
+  const [, setMessageType] = useAtom(messageTypeAtom)
+  const [, setGptSwitch] = useAtom(gptSwitchAtom)
 
   const chatId = params.chatId as string
 
@@ -32,6 +41,8 @@ export const ExampleItem = ({ type, content }: Props) => {
     <li
       className="border-rounded flex cursor-pointer select-none items-center gap-2 rounded-full border px-6 py-2 transition-all duration-200 ease-in-out hover:border-primary hover:shadow-lg"
       onClick={async () => {
+        setMessageType(type)
+        // set gpt switch type here
         await createMessageMutation({
           chatId,
           type,

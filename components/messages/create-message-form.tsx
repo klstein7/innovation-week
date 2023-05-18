@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { isMessagingAtom, isOpenAiAlertAtom } from "@/atoms"
+import { isMessagingAtom, isOpenAiAlertAtom, messageTypeAtom } from "@/atoms"
 import { MessageUncheckedCreateInputSchema } from "@/prisma/generated/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { MessageType } from "@prisma/client"
@@ -28,20 +28,31 @@ type Props = {
 
 export const CreateMessageForm = ({ defaultValues }: Props) => {
   const router = useRouter()
+  const [messageType, setMessageType] = useAtom(messageTypeAtom)
   const [isMessaging] = useAtom(isMessagingAtom)
   const [isOpenAiAlert, setIsOpenAiAlert] = useAtom(isOpenAiAlertAtom)
   const createMessageMutation = useCreateMessage()
 
   const form = useForm<z.infer<typeof MessageUncheckedCreateInputSchema>>({
     resolver: zodResolver(MessageUncheckedCreateInputSchema),
-    defaultValues,
+    defaultValues: {
+      ...defaultValues,
+      type: messageType,
+    },
   })
 
   const watchForm = form.watch()
 
   useEffect(() => {
+    if (watchForm.type) {
+      setMessageType(watchForm.type)
+    }
     setIsOpenAiAlert(watchForm.type !== "TABLE" ? true : false)
   }, [watchForm.type])
+
+  useEffect(() => {
+    form.setValue("type", messageType)
+  }, [messageType])
 
   return (
     <form
