@@ -57,7 +57,7 @@ export const MessageList = ({ messages }: Props) => {
 
   return (
     <div className="flex max-h-[calc(100vh-9rem)] flex-1 flex-col overflow-y-auto">
-      <ul className="flex  flex-1 flex-col gap-4 p-4">
+      <ul className="flex flex-1 flex-col gap-4 p-4">
         {optimisticMessages.map((message) => (
           <MessageItem key={message.id} message={message} />
         ))}

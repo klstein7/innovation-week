@@ -39,7 +39,7 @@ Props) => {
   }
   return (
     <li
-      className="border-rounded flex cursor-pointer select-none items-center gap-2 rounded-full border px-6 py-2 transition-all duration-200 ease-in-out hover:border-primary hover:shadow-lg"
+      className="border-rounded flex cursor-pointer select-none items-center justify-between gap-4 rounded-full border px-6 py-2 transition-all duration-200 ease-in-out hover:border-primary hover:shadow-lg"
       onClick={async () => {
         setMessageType(type)
         // set gpt switch type here
