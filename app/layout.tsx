@@ -4,6 +4,7 @@ import { Metadata } from "next"
 import { siteConfig } from "@/config/site"
 import { fontSans } from "@/lib/fonts"
 import { cn } from "@/lib/utils"
+import { ClearMessages } from "@/components/ui/clear-messages-button"
 import { GptSwitch } from "@/components/ui/gpt-switch"
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -43,17 +44,19 @@ export default function RootLayout({ children }: RootLayoutProps) {
         >
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <div className="relative flex h-screen flex-col">
-              <div className="flex h-12 shrink-0 items-center border-b px-2">
-                <div className="absolute inset-x-0 m-auto grid place-items-center">
+              <div className="flex h-12 w-full items-center justify-center border-b px-2">
+                <div className="flex w-64 flex-1 justify-start">
+                  <ClearMessages />
+                </div>
+                <div className="flex w-64 flex-1 items-center justify-center">
                   <GptSwitch />
                 </div>
-                <div className="absolute right-0">
+                <div className="flex w-64 flex-1 justify-end">
                   <ThemeToggle />
                 </div>
               </div>
               <div className="flex flex-1 flex-col">{children}</div>
             </div>
-            
           </ThemeProvider>
           <Toaster />
         </body>
