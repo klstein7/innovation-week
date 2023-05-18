@@ -44,10 +44,16 @@ export default function RootLayout({ children }: RootLayoutProps) {
         >
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <div className="relative flex h-screen flex-col">
-              <div className="flex h-12 shrink-0 items-center justify-between border-b px-2">
-                <ClearMessages />
-                <GptSwitch />
-                <ThemeToggle />
+              <div className="flex h-12 w-full items-center justify-center border-b px-2">
+                <div className="flex justify-start w-64">
+                  <ClearMessages />
+                </div>
+                <div className="flex justify-center items-center w-64">
+                  <GptSwitch />
+                </div>
+                <div className="flex justify-end w-64">
+                  <ThemeToggle />
+                </div>
               </div>
               <div className="flex flex-1 flex-col">{children}</div>
             </div>
