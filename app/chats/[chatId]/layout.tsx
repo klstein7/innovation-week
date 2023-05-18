@@ -1,7 +1,6 @@
-import { MessageType } from "@prisma/client"
-import { useAtom } from "jotai"
-
 import { CreateMessageForm } from "@/components/messages/create-message-form"
+
+export const revalidate = 0
 
 type Props = {
   children: React.ReactNode

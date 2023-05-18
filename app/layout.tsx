@@ -10,6 +10,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ThemeToggle } from "@/components/theme-toggle"
 
+export const revalidate = 0
+
 export const metadata: Metadata = {
   title: {
     default: siteConfig.name,
