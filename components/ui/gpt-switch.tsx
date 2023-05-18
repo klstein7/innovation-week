@@ -10,7 +10,7 @@ export const GptSwitch = () => {
   const [, setGptAtom] = useAtom(gptSwitchAtom)
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 text-xs">
       <div>GPT 3.5</div>
       <Switch
         disabled={isMessaging}

@@ -51,8 +51,10 @@ export const ExampleList = () => {
     },
   ]
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2">
-      <div className="text-4xl font-semibold">Not sure where to start?</div>
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 p-3">
+      <div className="text-center text-4xl font-semibold">
+        Not sure where to start?
+      </div>
       <div className="mb-2 text-center text-muted-foreground">
         Get started with one of these examples below:
       </div>
