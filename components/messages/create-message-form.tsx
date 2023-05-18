@@ -50,6 +50,10 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
     setIsOpenAiAlert(watchForm.type !== "TABLE" ? true : false)
   }, [watchForm.type])
 
+  useEffect(() => {
+    form.setValue("type", messageType)
+  }, [messageType])
+
   return (
     <form
       autoComplete="off"
