@@ -6,7 +6,43 @@ export const ExampleList = () => {
   const examples = [
     {
       type: MessageType.TABLE,
-      content: "What is the average application amount by province?",
+      content: "Count applications by business line and channel?",
+    },
+    {
+      type: MessageType.TABLE,
+      content: "What is each province's status count?",
+    },
+    {
+      type: MessageType.TABLE,
+      content: "What's the majority chosen language for applications by province?",
+    },
+    {
+      type: MessageType.TEXT,
+      content: "What is the id for the most recent application?",
+    },
+    {
+      type: MessageType.TEXT,
+      content: "Most popular channel of choice?",
+    },
+    {
+      type: MessageType.TEXT,
+      content: "Average amount of days between created and completed date?",
+    },
+    {
+      type: MessageType.CHART,
+      content: "How many French vs English applications have been received?",
+    },
+    {
+      type: MessageType.CHART,
+      content: "Number of applications by channel of choice?",
+    },
+    {
+      type: MessageType.CHART,
+      content: "Amount of small business applications by status?",
+    },
+    {
+      type: MessageType.CHART,
+      content: "SELECT * FROM \"Application\" GROUP BY \"Address\".\"province\"",
     },
   ]
   return (
