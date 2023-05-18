@@ -111,11 +111,11 @@ WHERE "Application"."amount" > 5000
 `
 
 const REFLECTION_PROMPT = `
-As an AI model with SQL analysis capabilities, please perform the following tasks:
+As an AI model with PostgreSQL analysis capabilities, please perform the following tasks:
 
 If the input is not a SQL query, mark its status as 'INVALID' and return an error message explaining that the input is not a SQL query.
 Analyze the supplied SQL query to determine whether it inserts, updates, or deletes data in the database. If it does, mark its status as 'INVALID' and return an error message explaining that the query is not allowed.
-Assess its syntactic correctness. If it's not correctly structured, correct the syntax and mark its status as 'VALID'.
+Assess its syntactic correctness. If it's not a correctly structured PostgreSQL query, correct the syntax and mark its status as 'VALID'.
 If the query is syntactically correct and doesn't modify data, mark its status as 'VALID'.
 Return the outcome as a JSON object following this format:
 {
