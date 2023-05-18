@@ -406,14 +406,3 @@ export const getSqlResults = async ({ sql }: { sql: string }) => {
   return results as Record<string, unknown>[]
 }
 
-export const clearMessages = async ({
-  chatId,
-}: {
-  chatId: string
-}) => {
-  await prisma.message.deleteMany({
-  where: {
-    chatId,
-  },
-})
-}

@@ -1,9 +1,10 @@
 "use client"
 
-import { clearMessages } from "@/actions/openai"
 import { Button } from "@/components/ui/button"
-import { useClearMessage } from "@/hooks/use-clear-message"
+import { clearMessage } from "@/components/clear-message"
+import { useParams } from "next/navigation"
 
 export function ClearMessages() {
-  return <Button onClick={useClearMessage}>Clear History</Button>
+  const params = useParams()
+  return <Button onClick={() => clearMessage({chatId: params.chatId})}>Clear History</Button>
 }
