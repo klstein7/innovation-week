@@ -33,7 +33,7 @@ export const ExampleItem = ({ example }: Props) => {
   }
   return (
     <li
-      className="border-rounded flex max-w-2xl cursor-pointer select-none items-center justify-between gap-8 rounded-full border px-6 py-2 transition-all duration-200 ease-in-out hover:border-primary hover:shadow-lg"
+      className="border-rounded flex cursor-pointer select-none items-center justify-between gap-8 rounded-full border px-6 py-2 transition-all duration-200 ease-in-out hover:border-primary hover:shadow-lg"
       onClick={async () => {
         setMessageType(example.type)
         setGptSwitch(example.gpt as GptVersionModel)
@@ -45,19 +45,18 @@ export const ExampleItem = ({ example }: Props) => {
         router.refresh()
       }}
     >
-      <div className="text-sm">{example.content}</div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div>
+        <div className="text-xs text-muted-foreground">
+          {example.gpt === "gpt-3.5-turbo" ? "GPT 3.5" : "GPT 4"}
+        </div>
+        <div className="text-sm">{example.content}</div>
+      </div>
+      <div className="flex items-center gap-2">
         <Badge
           variant="secondary"
           className="flex w-[5rem] items-center justify-center"
         >
           {getBadgeLabel()}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="flex w-[5rem] items-center justify-center"
-        >
-          {example.gpt === "gpt-3.5-turbo" ? "GPT 3.5" : "GPT 4"}
         </Badge>
       </div>
     </li>
