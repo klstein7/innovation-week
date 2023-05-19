@@ -54,6 +54,15 @@ enum MessageType {
   CHART
 }
 
+model Example {
+  id        String      @id @default(cuid())
+  type      MessageType
+  content   String      @db.Text
+  gpt       String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
 /// Exposed to AI
 
 model Application {

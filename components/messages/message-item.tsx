@@ -98,17 +98,17 @@ export const MessageItem = ({ message }: Props) => {
       >
         <div className="flex items-center gap-2">
           <button
-              className="flex select-none items-center justify-center gap-2 rounded border px-3 py-1 text-xs hover:bg-primary hover:text-primary-foreground"
-              onClick={() => {
-                copy(message.content)
-                toast({
-                  title: "Copied to clipboard",
-                  description: "The text has been copied to your clipboard.",
-                })
-              }}
-            >
+            className="flex select-none items-center justify-center gap-2 rounded border px-3 py-1 text-xs hover:bg-primary hover:text-primary-foreground"
+            onClick={() => {
+              copy(message.content)
+              toast({
+                title: "Copied to clipboard",
+                description: "The text has been copied to your clipboard.",
+              })
+            }}
+          >
             <Copy className="h-3 w-3" />
-            Text
+            Copy
           </button>
         </div>
         <div

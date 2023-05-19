@@ -6,18 +6,7 @@ import { ChatCompletionRequestMessageRoleEnum } from "openai"
 
 import { openai } from "@/lib/openai"
 
-const SQL_PROMPT = `
-Today's date is ${new Date().toLocaleDateString()}.
-You are a database engineer and your task is to build a PostgreSQL query, drawing upon the Prisma model schemas provided below. The query you create will answer a specific question, and it might necessitate the use of JOINs, WHERE clauses, or aggregations. Please follow these guidelines while writing your query:
-
-Use double quotes for table and column names.
-Use single quotes for string values.
-Do not end your query with a semicolon.
-Assign short descriptive aliases to your columns.
-Present only the SQL query, with no supplementary text or formatting.
-
-Here are the model schemas you'll be working with:
-
+const SCHEMA = `
 model Application {
   id           String            @id @default(cuid())
   amount       Float
@@ -96,6 +85,21 @@ enum BusinessPartnerType {
   ALLIANCE_PARTNER
   CUSTOMER
 }
+`
+
+const SQL_PROMPT = `
+Today's date is ${new Date().toLocaleDateString()}.
+You are a database engineer and your task is to build a PostgreSQL query, drawing upon the Prisma model schemas provided below. The query you create will answer a specific question, and it might necessitate the use of JOINs, WHERE clauses, or aggregations. Please follow these guidelines while writing your query:
+
+Use double quotes for table and column names.
+Use single quotes for string values.
+Do not end your query with a semicolon.
+Assign short descriptive aliases to your columns.
+Present only the SQL query, with no supplementary text or formatting.
+
+Here are the model schemas you'll be working with:
+
+${SCHEMA}
 
 Using these schemas, please create a PostgreSQL query to answer the following question:
 
@@ -114,7 +118,7 @@ const REFLECTION_PROMPT = `
 As an AI model with PostgreSQL analysis capabilities, please perform the following tasks:
 
 If the input is not a SQL query, mark its status as 'INVALID' and return an error message explaining that the input is not a SQL query.
-Analyze the supplied SQL query to determine whether it inserts, updates, or deletes data in the database. If it does, mark its status as 'INVALID' and return an error message explaining that the query is not allowed.
+Analyze the supplied SQL query to determine whether it fetches data. If it doesn't, mark its status as 'INVALID' and return an error message explaining that the query is not allowed.
 Assess its syntactic correctness. If it's not a correctly structured PostgreSQL query, correct the syntax and mark its status as 'VALID'.
 If the query is syntactically correct and doesn't modify data, mark its status as 'VALID'.
 Return the outcome as a JSON object following this format:

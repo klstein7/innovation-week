@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { useParams, useRouter } from "next/navigation"
 import { isMessagingAtom, messagesAtom, messagingStatusAtom } from "@/atoms"
-import { Message } from "@prisma/client"
+import { Example, Message } from "@prisma/client"
 import { useAtom } from "jotai"
 import { Loader2 } from "lucide-react"
 
@@ -14,9 +15,12 @@ import { MessageItem } from "./message-item"
 
 type Props = {
   messages: Message[]
+  examples: Example[]
 }
 
-export const MessageList = ({ messages }: Props) => {
+export const MessageList = ({ messages, examples }: Props) => {
+  const router = useRouter()
+  const params = useParams()
   const [messagingStatus] = useAtom(messagingStatusAtom)
   const [optimisticMessages, setMessages] = useAtom(messagesAtom)
   const [isMessaging] = useAtom(isMessagingAtom)
@@ -45,14 +49,14 @@ export const MessageList = ({ messages }: Props) => {
 
   useEffect(() => {
     setMessages(messages)
-  }, [messages, setMessages])
+  }, [messages, params.chatId, router, setMessages])
 
   useEffect(() => {
     scrollToBottom()
   }, [optimisticMessages])
 
-  if (optimisticMessages.length === 0) {
-    return <ExampleList />
+  if (!optimisticMessages.length) {
+    return <ExampleList examples={examples} />
   }
 
   return (
