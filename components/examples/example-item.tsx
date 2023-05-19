@@ -46,7 +46,7 @@ export const ExampleItem = ({ example }: Props) => {
       }}
     >
       <div className="text-sm">{example.content}</div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Badge
           variant="secondary"
           className="flex w-[5rem] items-center justify-center"
