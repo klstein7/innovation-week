@@ -1,7 +1,7 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation"
-import { gptSwitchAtom, messageTypeAtom, GptVersionModel } from "@/atoms"
+import { GptVersionModel, gptSwitchAtom, messageTypeAtom } from "@/atoms"
 import { MessageType } from "@prisma/client"
 import { useAtom } from "jotai"
 
@@ -14,12 +14,7 @@ type Props = {
   content: string
   gpt: GptVersionModel
 }
-export const ExampleItem = ({
-  type,
-  content,
-  gpt
-}:
-Props) => {
+export const ExampleItem = ({ type, content, gpt }: Props) => {
   const params = useParams()
   const router = useRouter()
   const createMessageMutation = useCreateMessage()
@@ -40,7 +35,7 @@ Props) => {
   }
   return (
     <li
-      className="border-rounded flex cursor-pointer select-none items-center justify-between gap-4 rounded-full border px-6 py-2 transition-all duration-200 ease-in-out hover:border-primary hover:shadow-lg"
+      className="border-rounded flex cursor-pointer select-none items-center justify-between gap-8 rounded-full border px-6 py-2 transition-all duration-200 ease-in-out hover:border-primary hover:shadow-lg"
       onClick={async () => {
         setMessageType(type)
         setGptSwitch(gpt)
@@ -53,7 +48,20 @@ Props) => {
       }}
     >
       {content}
-      <Badge>{getBadgeLabel()}</Badge>
+      <div className="flex items-center gap-2">
+        <Badge
+          variant="secondary"
+          className="flex w-[5rem] items-center justify-center"
+        >
+          {getBadgeLabel()}
+        </Badge>
+        <Badge
+          variant="outline"
+          className="flex w-[5rem] items-center justify-center"
+        >
+          {gpt === "gpt-3.5-turbo" ? "GPT 3.5" : "GPT 4"}
+        </Badge>
+      </div>
     </li>
   )
 }
