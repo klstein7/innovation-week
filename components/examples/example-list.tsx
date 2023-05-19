@@ -7,7 +7,6 @@ type Props = {
 }
 
 export const ExampleList = ({ examples }: Props) => {
-  console.log(examples)
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 p-3">
       <div className="text-center text-4xl font-semibold">
