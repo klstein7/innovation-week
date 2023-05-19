@@ -2,7 +2,12 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { isMessagingAtom, isOpenAiAlertAtom, messageTypeAtom } from "@/atoms"
+import {
+  gptAtom,
+  isMessagingAtom,
+  isOpenAiAlertAtom,
+  messageTypeAtom,
+} from "@/atoms"
 import { MessageUncheckedCreateInputSchema } from "@/prisma/generated/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { MessageType } from "@prisma/client"
@@ -31,6 +36,7 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
   const [messageType, setMessageType] = useAtom(messageTypeAtom)
   const [isMessaging] = useAtom(isMessagingAtom)
   const [isOpenAiAlert, setIsOpenAiAlert] = useAtom(isOpenAiAlertAtom)
+  const [gpt] = useAtom(gptAtom)
   const createMessageMutation = useCreateMessage()
 
   const form = useForm<z.infer<typeof MessageUncheckedCreateInputSchema>>({
@@ -48,18 +54,18 @@ export const CreateMessageForm = ({ defaultValues }: Props) => {
       setMessageType(watchForm.type)
     }
     setIsOpenAiAlert(watchForm.type !== "TABLE" ? true : false)
-  }, [watchForm.type])
+  }, [setIsOpenAiAlert, setMessageType, watchForm.type])
 
   useEffect(() => {
     form.setValue("type", messageType)
-  }, [messageType])
+  }, [form, messageType])
 
   return (
     <form
       autoComplete="off"
       className="flex h-24 shrink-0 items-center justify-center gap-4 border-t px-4"
       onSubmit={form.handleSubmit(async (values) => {
-        await createMessageMutation(values)
+        await createMessageMutation(values, gpt)
 
         form.reset({
           ...values,
