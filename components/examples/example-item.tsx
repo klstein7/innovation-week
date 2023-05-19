@@ -1,7 +1,7 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation"
-import { GptVersionModel, gptSwitchAtom, messageTypeAtom } from "@/atoms"
+import { gptAtom, messageTypeAtom } from "@/atoms"
 import { Example, MessageType } from "@prisma/client"
 import { useAtom } from "jotai"
 
@@ -17,7 +17,7 @@ export const ExampleItem = ({ example }: Props) => {
   const router = useRouter()
   const createMessageMutation = useCreateMessage()
   const [, setMessageType] = useAtom(messageTypeAtom)
-  const [, setGptSwitch] = useAtom(gptSwitchAtom)
+  const [, setGpt] = useAtom(gptAtom)
 
   const chatId = params.chatId as string
 
@@ -36,12 +36,15 @@ export const ExampleItem = ({ example }: Props) => {
       className="border-rounded flex cursor-pointer select-none items-center justify-between gap-8 rounded-full border px-6 py-2 transition-all duration-200 ease-in-out hover:border-primary hover:shadow-lg"
       onClick={async () => {
         setMessageType(example.type)
-        setGptSwitch(example.gpt as GptVersionModel)
-        await createMessageMutation({
-          chatId,
-          type: example.type,
-          content: example.content,
-        })
+        setGpt(example.gpt)
+        await createMessageMutation(
+          {
+            chatId,
+            type: example.type,
+            content: example.content,
+          },
+          example.gpt
+        )
         router.refresh()
       }}
     >

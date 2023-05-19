@@ -12,12 +12,7 @@ import {
   getSqlReflection,
   getSqlResults,
 } from "@/actions/openai"
-import {
-  gptSwitchAtom,
-  isMessagingAtom,
-  messagesAtom,
-  messagingStatusAtom,
-} from "@/atoms"
+import { isMessagingAtom, messagesAtom, messagingStatusAtom } from "@/atoms"
 import { MessageRole, MessageType, Prisma } from "@prisma/client"
 import { useAtom } from "jotai"
 import { ChatCompletionRequestMessageRoleEnum } from "openai"
@@ -29,8 +24,11 @@ export const useCreateMessage = () => {
   const [, setMessagingStatus] = useAtom(messagingStatusAtom)
   const [, setIsMessaging] = useAtom(isMessagingAtom)
   const [messages, setMessages] = useAtom(messagesAtom)
-  const [gptAtom] = useAtom(gptSwitchAtom)
-  return async function (values: Prisma.MessageUncheckedCreateInput) {
+
+  return async function (
+    values: Prisma.MessageUncheckedCreateInput,
+    gpt: string
+  ) {
     setMessagingStatus("GENERATING")
     setIsMessaging(true)
 
@@ -56,14 +54,14 @@ export const useCreateMessage = () => {
       question: values.content,
       role: ChatCompletionRequestMessageRoleEnum.System,
       type: "SQL",
-      gptVersionModel: gptAtom,
+      gptVersionModel: gpt,
     })
 
     setMessagingStatus("REFLECTING")
     const reflection = await getSqlReflection({
       input: sql,
       chatId: values.chatId,
-      gptVersionModel: gptAtom,
+      gptVersionModel: gpt,
     })
 
     if (reflection?.status === "VALID") {
@@ -95,7 +93,7 @@ export const useCreateMessage = () => {
               question: values.content,
               results,
               sql: reflection.response,
-              gptVersionModel: gptAtom,
+              gptVersionModel: gpt,
             })
           } catch {
             try {
@@ -127,7 +125,7 @@ export const useCreateMessage = () => {
               question: values.content,
               results,
               sql: reflection.response,
-              gptVersionModel: gptAtom,
+              gptVersionModel: gpt,
             })
           } catch {
             await createErrorMessage({
